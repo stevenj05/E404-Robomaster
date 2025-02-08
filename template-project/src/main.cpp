@@ -29,6 +29,9 @@
 
 #include "modm/architecture/interface/delay.hpp"
 
+/* controller includes ------------------------------------------------------*/
+#include "tap/communication/serial/remote.hpp"
+
 /* arch includes ------------------------------------------------------------*/
 #include "tap/architecture/periodic_timer.hpp"
 #include "tap/architecture/profiler.hpp"
@@ -47,8 +50,16 @@
 /* define timers here -------------------------------------------------------*/
 static constexpr float MAIN_LOOP_FREQUENCY = 500.0f;
 
-static constexpr tap::motor::MotorId MOTOR_ID = tap::motor::MOTOR2;
+static constexpr tap::motor::MotorId MOTOR_ID = tap::motor::MOTOR1;
 static constexpr tap::can::CanBus CAN_BUS = tap::can::CanBus::CAN_BUS1;
+
+static constexpr tap::motor::MotorId MOTOR_ID2 = tap::motor::MOTOR2;
+
+static constexpr tap::motor::MotorId MOTOR_ID3 = tap::motor::MOTOR3;
+
+static constexpr tap::motor::MotorId MOTOR_ID4 = tap::motor::MOTOR4;
+
+
 static constexpr int DESIRED_RPM = 3000;
 
 tap::arch::PeriodicMilliTimer sendMotorTimeout(1000.0f / MAIN_LOOP_FREQUENCY);
@@ -66,6 +77,9 @@ tap::algorithms::SmoothPidConfig SmoothpidConfig(20, 0, 0, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPid pidController(SmoothpidConfig);
 
 tap::motor::DjiMotor motor(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, false, "cool motor");
+tap::motor::DjiMotor motor2(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, false, "cool motor");
+tap::motor::DjiMotor motor3(src::DoNotUse_getDrivers(), MOTOR_ID3, CAN_BUS, false, "cool motor");
+tap::motor::DjiMotor motor4(src::DoNotUse_getDrivers(), MOTOR_ID4, CAN_BUS, false, "cool motor");
 
 int main()
 {
@@ -80,11 +94,17 @@ int main()
      */
     src::Drivers *drivers = src::DoNotUse_getDrivers();
 
+    tap::communication::serial::Remote remote(drivers);
+    
     Board::initialize();
     motor.initialize();
+    motor2.initialize();
+    motor3.initialize();
+    motor4.initialize();
+    remote.initialize();
    // drivers -> djiMotorTxHandler.encodeAndSendCanData();
     initializeIo(drivers);
-
+    
 
 #ifdef PLATFORM_HOSTED
     tap::motor::motorsim::DjiMotorSimHandler::getInstance()->resetMotorSims();
@@ -95,7 +115,9 @@ int main()
     while (1)
     {
         // do this as fast as you can
-        PROFILE(drivers->profiler, updateIo, (drivers));
+       remote.read();
+
+        //PROFILE(drivers->profiler, updateIo, (drivers));
 
         if (sendMotorTimeout.execute())
         {
@@ -104,8 +126,20 @@ int main()
             PROFILE(drivers->profiler, drivers->djiMotorTxHandler.encodeAndSendCanData, ());
             PROFILE(drivers->profiler, drivers->terminalSerial.update, ());
             
-            pidController.runControllerDerivateError(DESIRED_RPM - 0, 1);
-            motor.setDesiredOutput(static_cast<int32_t>(pidController.getOutput()));
+            //pidController.runControllerDerivateError(DESIRED_RPM - 0, 1);
+            float FWDJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL);
+            float StrafeJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
+            float TXJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
+            float TYJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
+            
+            
+            motor.setDesiredOutput((FWDJoy+StrafeJoy+TXJoy)*(1000));
+            motor2.setDesiredOutput((FWDJoy-StrafeJoy-TXJoy)*(1000));
+            motor3.setDesiredOutput((FWDJoy-StrafeJoy+TXJoy)*(1000));
+            motor4.setDesiredOutput((FWDJoy+StrafeJoy-TXJoy)*(1000));
+
+            
+            
             drivers->djiMotorTxHandler.encodeAndSendCanData();
         }
 
