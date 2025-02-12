@@ -1,57 +1,25 @@
-/*
- * Copyright (c) 2020-2021 Advanced Robotics at the University of Washington <robomstr@uw.edu>
- *
- * This file is part of taproot-template-project.
- *
- * taproot-template-project is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * taproot-template-project is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with taproot-template-project.  If not, see <https://www.gnu.org/licenses/>.
- */
+#include <iostream>
+#include <stdio.h>
 
 #ifdef PLATFORM_HOSTED
 /* hosted environment (simulator) includes --------------------------------- */
-#include <iostream>
 
 #include "tap/communication/tcp-server/tcp_server.hpp"
 #include "tap/motor/motorsim/dji_motor_sim_handler.hpp"
 #endif
 
-#include "tap/board/board.hpp"
+#include "refrenceHead.hpp"
 
-#include "modm/architecture/interface/delay.hpp"
-
-/* controller includes ------------------------------------------------------*/
-#include "tap/communication/serial/remote.hpp"
-
-/* arch includes ------------------------------------------------------------*/
-#include "tap/architecture/periodic_timer.hpp"
-#include "tap/architecture/profiler.hpp"
-
-/* communication includes ---------------------------------------------------*/
-#include "drivers.hpp"
-#include "drivers_singleton.hpp"
-
-/* error handling includes --------------------------------------------------*/
-#include "tap/errors/create_errors.hpp"
-
-/* control includes ---------------------------------------------------------*/
-#include "tap/architecture/clock.hpp"
-#include "tap/algorithms/smooth_pid.hpp"
+/* Our Headers -------------------------------------------------------*/
+#include "stuffh.hpp"
 
 /* define timers here -------------------------------------------------------*/
+
 static constexpr float MAIN_LOOP_FREQUENCY = 500.0f;
 
-static constexpr tap::motor::MotorId MOTOR_ID = tap::motor::MOTOR1;
 static constexpr tap::can::CanBus CAN_BUS = tap::can::CanBus::CAN_BUS1;
+
+static constexpr tap::motor::MotorId MOTOR_ID = tap::motor::MOTOR1;
 
 static constexpr tap::motor::MotorId MOTOR_ID2 = tap::motor::MOTOR2;
 
@@ -77,12 +45,13 @@ tap::algorithms::SmoothPidConfig SmoothpidConfig(20, 0, 0, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPid pidController(SmoothpidConfig);
 
 tap::motor::DjiMotor motor(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, false, "cool motor");
-tap::motor::DjiMotor motor2(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, false, "cool motor");
+tap::motor::DjiMotor motor2(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, true, "cool motor");
 tap::motor::DjiMotor motor3(src::DoNotUse_getDrivers(), MOTOR_ID3, CAN_BUS, false, "cool motor");
-tap::motor::DjiMotor motor4(src::DoNotUse_getDrivers(), MOTOR_ID4, CAN_BUS, false, "cool motor");
+tap::motor::DjiMotor motor4(src::DoNotUse_getDrivers(), MOTOR_ID4, CAN_BUS, true, "cool motor");
 
 int main()
 {
+    
 #ifdef PLATFORM_HOSTED
     std::cout << "Simulation starting..." << std::endl;
 #endif
@@ -127,20 +96,25 @@ int main()
             PROFILE(drivers->profiler, drivers->terminalSerial.update, ());
             
             //pidController.runControllerDerivateError(DESIRED_RPM - 0, 1);
+            
             float FWDJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL);
             float StrafeJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
             float TXJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
             float TYJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
             
             
-            motor.setDesiredOutput((FWDJoy+StrafeJoy+TXJoy)*(1000));
-            motor2.setDesiredOutput((FWDJoy-StrafeJoy-TXJoy)*(1000));
-            motor3.setDesiredOutput((FWDJoy-StrafeJoy+TXJoy)*(1000));
-            motor4.setDesiredOutput((FWDJoy+StrafeJoy-TXJoy)*(1000));
-
             
+            motor.setDesiredOutput((FWDJoy+StrafeJoy+TXJoy)*(1684));
+            motor2.setDesiredOutput((FWDJoy-StrafeJoy-TXJoy)*(1684));
+            motor3.setDesiredOutput((FWDJoy-StrafeJoy+TXJoy)*(1684));
+            motor4.setDesiredOutput((FWDJoy+StrafeJoy-TXJoy)*(1684));
+            
+           //motor.setDesiredOutput((remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL))*(1000));
+
+            //std::cout << FWDJoy << std::endl;
             
             drivers->djiMotorTxHandler.encodeAndSendCanData();
+            
         }
 
         drivers->canRxHandler.pollCanData();
