@@ -189,7 +189,7 @@ using DigitalOutPinLaser = GpioG13;
         
 using DigitalOutPins = SoftwareGpioPort<DigitalOutPinE, DigitalOutPinF, DigitalOutPinG, DigitalOutPinH, DigitalOutPinLaser>;
 
-// gpio pins used for SPI communication to the onboard MPU6500 IMU
+// gpio pins used for SPI communication to the onboard MPU6500 GYRO
 
 using ImuSck = GpioF7;
 using ImuMiso = GpioF8;

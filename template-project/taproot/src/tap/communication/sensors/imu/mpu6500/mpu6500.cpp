@@ -98,7 +98,7 @@ void Mpu6500::init(float sampleFrequency, float mahonyKp, float mahonyKi)
     // verify mpu register ID
     if (MPU6500_ID != spiReadRegister(MPU6500_WHO_AM_I))
     {
-        RAISE_ERROR(drivers, "Failed to initialize the IMU properly");
+        RAISE_ERROR(drivers, "Failed to initialize the GYRO properly");
         return;
     }
 
@@ -285,15 +285,15 @@ void Mpu6500::addValidationErrors()
 {
     if (errorState & (1 << static_cast<uint8_t>(ImuState::IMU_NOT_CALIBRATED)))
     {
-        RAISE_ERROR(drivers, "IMU data requested but IMU not calibrated");
+        RAISE_ERROR(drivers, "GYRO data requested but GYRO not calibrated");
     }
     else if (errorState & (1 << static_cast<uint8_t>(ImuState::IMU_CALIBRATING)))
     {
-        RAISE_ERROR(drivers, "Reading IMU data but IMU calibrating");
+        RAISE_ERROR(drivers, "Reading GYRO data but GYRO calibrating");
     }
     else if (errorState & (1 << static_cast<uint8_t>(ImuState::IMU_NOT_CONNECTED)))
     {
-        RAISE_ERROR(drivers, "Failed to initialize IMU properly");
+        RAISE_ERROR(drivers, "Failed to initialize GYRO properly");
     }
 
     errorState = 0;

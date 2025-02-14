@@ -22,3 +22,10 @@
 #include "tap/architecture/clock.hpp"
 #include "tap/algorithms/smooth_pid.hpp"
 
+#include "tap/communication/sensors/imu/mpu6500/mpu6500.hpp"
+
+#include "tap/communication/sensors/imu/imu_terminal_serial_handler.hpp"
+
+#include "tap/communication/serial/terminal_serial.hpp"
+
+#include "tap/motor/servo.hpp"

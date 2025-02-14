@@ -54,7 +54,7 @@ public:
     void initialize();
 
     /**
-     * Runs a PID controller to regulate the temperature of the IMU.
+     * Runs a PID controller to regulate the temperature of the GYRO.
      *
      * @param[in] temperature The temperature of the mpu6500, units degrees C.
      */
@@ -72,7 +72,7 @@ private:
 
     /**
      * PWM frequency of the timer associated with the GPIO pin that is in charge
-     * of controlling the temperature of the IMU.
+     * of controlling the temperature of the GYRO.
      */
     static constexpr float HEATER_PWM_FREQUENCY = 1000.0f;
 

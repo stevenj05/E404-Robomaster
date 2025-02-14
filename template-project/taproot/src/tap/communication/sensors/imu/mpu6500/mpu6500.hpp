@@ -111,7 +111,7 @@ public:
     mockable void init(float sampleFrequency, float mahonyKp, float mahonyKi);
 
     /**
-     * Calculates the IMU's pitch, roll, and yaw angles usign the Mahony AHRS algorithm.
+     * Calculates the GYRO's pitch, roll, and yaw angles usign the Mahony AHRS algorithm.
      * Also runs a controller to keep the temperature constant.
      * Call at 500 hz for best performance.
      */
@@ -126,13 +126,13 @@ public:
     mockable bool read();
 
     /**
-     * Returns the state of the IMU. Can be not connected, connected but not calibrated, calibrating
-     * or calibrated. When not connected, IMU data is undefiend. When not calibrated, IMU data is
-     * valid but the computed yaw angle data will drift. When calibrating, the IMU data is invalid.
-     * When calibrated, the IMU data is valid and assuming proper calibration the IMU data should
+     * Returns the state of the GYRO. Can be not connected, connected but not calibrated, calibrating
+     * or calibrated. When not connected, GYRO data is undefiend. When not calibrated, GYRO data is
+     * valid but the computed yaw angle data will drift. When calibrating, the GYRO data is invalid.
+     * When calibrated, the GYRO data is valid and assuming proper calibration the GYRO data should
      * not drift.
      *
-     * To be safe, whenever you call functions that return IMU (acceleration, gyroscope,
+     * To be safe, whenever you call functions that return GYRO (acceleration, gyroscope,
      * temperature, and angle) data, call this function to ensure the data you are about to receive
      * is not undefined.
      */
@@ -298,12 +298,12 @@ private:
     static constexpr int NONBLOCKING_TIME_TO_READ_REG = 450;
 
     /**
-     * Time in ms to wait for the IMU heat to stabalize upon initialization.
+     * Time in ms to wait for the GYRO heat to stabalize upon initialization.
      */
     static constexpr uint32_t MAX_WAIT_FOR_IMU_TEMPERATURE_STABALIZE = 10'000;
 
     /**
-     * Time in ms to wait after IMU heat has reached stable point upon initialization.
+     * Time in ms to wait after GYRO heat has reached stable point upon initialization.
      */
     static constexpr uint32_t WAIT_TIME_AFTER_CALIBRATION = 10'000;
 
@@ -377,7 +377,7 @@ private:
      */
     void addValidationErrors();
 
-    /// Default processing function when IMU is lying flat on the robot.
+    /// Default processing function when GYRO is lying flat on the robot.
     static void defaultProcessRawMpu6500Data(
         const uint8_t (&rxBuff)[ACC_GYRO_TEMPERATURE_BUFF_RX_SIZE],
         modm::Vector3f &accel,
