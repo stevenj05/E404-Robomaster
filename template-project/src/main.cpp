@@ -26,14 +26,15 @@ static constexpr float PWM_MAX_US = 2000.0f; // Maximum PWM pulse width (2200 µ
 */
 static constexpr tap::can::CanBus CAN_BUS = tap::can::CanBus::CAN_BUS1;
 
-static constexpr tap::motor::MotorId MOTOR_ID = tap::motor::MOTOR1;
+static constexpr tap::motor::MotorId MOTOR_ID = tap::motor::MOTOR2;
 
-static constexpr tap::motor::MotorId MOTOR_ID2 = tap::motor::MOTOR2;
+static constexpr tap::motor::MotorId MOTOR_ID2 = tap::motor::MOTOR3;
 
-static constexpr tap::motor::MotorId MOTOR_ID3 = tap::motor::MOTOR3;
+static constexpr tap::motor::MotorId MOTOR_ID3 = tap::motor::MOTOR4;
 
-static constexpr tap::motor::MotorId MOTOR_ID4 = tap::motor::MOTOR4;
+static constexpr tap::motor::MotorId MOTOR_ID4 = tap::motor::MOTOR1;
 
+static constexpr tap::motor::MotorId MOTOR_ID5 = tap::motor::MOTOR5;
 
 static constexpr int DESIRED_RPM = 3000;
 
@@ -57,7 +58,7 @@ tap::motor::DjiMotor motor(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, false,
 tap::motor::DjiMotor motor2(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, true, "cool motor");
 tap::motor::DjiMotor motor3(src::DoNotUse_getDrivers(), MOTOR_ID3, CAN_BUS, false, "cool motor");
 tap::motor::DjiMotor motor4(src::DoNotUse_getDrivers(), MOTOR_ID4, CAN_BUS, true, "cool motor");
-
+tap::motor::DjiMotor motor5(src::DoNotUse_getDrivers(), MOTOR_ID5, CAN_BUS, true, "cool motor");
 
 tap::gpio::Pwm::Pin pwmPin = tap::gpio::Pwm::Pin::Z;
 
@@ -99,6 +100,7 @@ int main()
     motor2.initialize();
     motor3.initialize();
     motor4.initialize();
+    motor5.initialize();
     remote.initialize();
 
     //Imu.initialize();
@@ -159,28 +161,24 @@ int main()
           //float poop = myServo.getPWM();
             //  myServo.updateSendPwmRamp();
             //motor.setDesiredOutput((poop)*(1684));
-            /*
+            
             motor.setDesiredOutput((FWDJoy+StrafeJoy+TXJoy)*(1684));
             motor2.setDesiredOutput((FWDJoy-StrafeJoy-TXJoy)*(1684));
-            motor3.setDesiredOutput((FWDJoy-StrafeJoy+TXJoy)*(1684));
-            motor4.setDesiredOutput((FWDJoy+StrafeJoy-TXJoy)*(1684));
-            */
-
-
-
-
+            motor3.setDesiredOutput((-FWDJoy-StrafeJoy+TXJoy)*(1684));
+            motor4.setDesiredOutput((-FWDJoy+StrafeJoy-TXJoy)*(1684));
+            motor5.setDesiredOutput((-TYJoy)*(10000));
 ////////////           rest position for turret must be parallel to floor
-
+            /*
             float Position = (motor4.getPositionWrapped()/2048);
-
+            
             float ploop = FWDJoy - Position *.01;
-            if (!FWDJoy ==FWDJoy)
+            if (FWDJoy y)
             {
 
               motor.setDesiredOutput(ploop); 
               
             }
-            
+            */
            //motor.setDesiredOutput((remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL))*(1000));
 
             //std::cout << FWDJoy << std::endl;
