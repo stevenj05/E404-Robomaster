@@ -58,7 +58,7 @@ tap::motor::DjiMotor motor4(src::DoNotUse_getDrivers(), MOTOR_ID4, CAN_BUS, true
 tap::motor::DjiMotor motor5(src::DoNotUse_getDrivers(), MOTOR_ID5, CAN_BUS, true, "cool motor");
 
 tap::gpio::Pwm::Pin pwmPin = tap::gpio::Pwm::Pin::Z;
-
+tap::gpio::Pwm::Pin pwmPin2 = tap::gpio::Pwm::Pin::Y;
 
 int main()
 {
@@ -124,10 +124,15 @@ int main()
             motor4.setDesiredOutput((-FWDJoy+StrafeJoy-TXJoy)*(1684));
             motor5.setDesiredOutput((-TYJoy)*(10000));
 
-            drivers->pwm.write(.2,pwmPin);
+            drivers->pwm.write(.9,pwmPin);
+            drivers->pwm.write(.9,pwmPin2);
+            if (FWDJoy > 0)
+            {
+                drivers->pwm.write(.1,pwmPin2);
+                drivers->pwm.write(.1,pwmPin);
+            }
 
             drivers->djiMotorTxHandler.encodeAndSendCanData();
-            
         }
 
         drivers->canRxHandler.pollCanData();
