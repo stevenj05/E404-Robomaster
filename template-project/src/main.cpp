@@ -17,13 +17,9 @@
 /* define timers here -------------------------------------------------------*/
 
 static constexpr float MAIN_LOOP_FREQUENCY = 500.0f;
-static constexpr float PWM_FREQUENCY = 400.0f;
-// Constants for PWM
-/*
-static constexpr float PWM_PERIOD_US = 2000.0f; // 2000 µs period for 500 Hz
-static constexpr float PWM_MIN_US = 400.0f; // Minimum PWM pulse width (400 µs)
-static constexpr float PWM_MAX_US = 2000.0f; // Maximum PWM pulse width (2200 µs)
-*/
+
+static constexpr float PWM_FREQUENCY = 500.0f;
+
 static constexpr tap::can::CanBus CAN_BUS = tap::can::CanBus::CAN_BUS1;
 
 static constexpr tap::motor::MotorId MOTOR_ID = tap::motor::MOTOR2;
@@ -46,6 +42,7 @@ static void initializeIo(src::Drivers *drivers);
 /*
 void initializePwmSequence(src::Drivers *drivers,tap::gpio::Pwm::Pin pwmpin);
 */
+
 // Anything that you would like to be called place here. It will be called
 // very frequently. Use PeriodicMilliTimers if you don't want something to be
 // called as frequently.
@@ -62,23 +59,9 @@ tap::motor::DjiMotor motor5(src::DoNotUse_getDrivers(), MOTOR_ID5, CAN_BUS, true
 
 tap::gpio::Pwm::Pin pwmPin = tap::gpio::Pwm::Pin::Z;
 
-//tap::communication::sensors::imu::mpu6500::Mpu6500 GYRO(src::DoNotUse_getDrivers());
 
-//tap::communication::sensors::imu::Im;
-tap::motor::Servo myServo(src::DoNotUse_getDrivers(), pwmPin, 0.05f, .2f, 0.01f );
- 
-/*
-const float MIN_PULSE_MS = 1;
-const float MAX_PULSE_MS = 2;
-*/
-/*
-const float THROTTLE_IDLE = MIN_PULSE_MS*PWM_FREQUENCY*0.001f;
-const float THROTTLE_RANGE = (MAX_PULSE_MS - MIN_PULSE_MS)*PWM_FREQUENCY*0.001f;
-*/
 int main()
 {
-
-    //myServo.setTargetPwm(0.15f);
 
 
     #ifdef PLATFORM_HOSTED
@@ -103,26 +86,23 @@ int main()
     motor5.initialize();
     remote.initialize();
 
-    //Imu.initialize();
-   // drivers -> djiMotorTxHandler.encodeAndSendCanData();
     initializeIo(drivers);
-    // Create an instance of the Mpu6500 class
-    //GYRO.requestCalibration();
+
     float FWDJoy, StrafeJoy, TXJoy, TYJoy = 0;
     
+    drivers->pwm.setTimerFrequency(tap::gpio::Pwm::Timer::TIMER8, PWM_FREQUENCY);
+
 #ifdef PLATFORM_HOSTED
     tap::motor::motorsim::DjiMotorSimHandler::getInstance()->resetMotorSims();
     // Blocking call, waits until Windows Simulator connects.
     tap::communication::TCPServer::MainServer()->getConnection();
 #endif
 
-
     while (1)
     {
-        // do this as fast as you can
+
         remote.read();
-        
-        ///bool read = GYRO.read();
+
         PROFILE(drivers->profiler, updateIo, (drivers));
         
         if (sendMotorTimeout.execute())
@@ -132,57 +112,20 @@ int main()
             PROFILE(drivers->profiler, drivers->djiMotorTxHandler.encodeAndSendCanData, ());
             PROFILE(drivers->profiler, drivers->terminalSerial.update, ());
             
-            //pidController.runControllerDerivateError(DESIRED_RPM - 0, 1);
-            
             FWDJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL);
             StrafeJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
             TXJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
             TYJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
             
-            //float POOOP = GYRO.getYaw();
-            //motor.setDesiredOutput((POOOP)*(1684));
-            
-         //if(FWDJoy >= 0.5)
-         /* {
-            float maxDutyCycle = PWM_MAX_US / PWM_PERIOD_US;
-            drivers->pwm.write(PWM_MAX_US, pwmPin);
-           }
-           else if(FWDJoy <= -0.5)
-           {
-            float minDutyCycle = PWM_MIN_US / PWM_PERIOD_US;
-            drivers->pwm.write(minDutyCycle, pwmPin);
-           }  
-           else
-           {
-            float minDutyCycle = PWM_MIN_US / PWM_PERIOD_US;
-            drivers->pwm.write(minDutyCycle, pwmPin);
-           }      
-         */
-          //float poop = myServo.getPWM();
-            //  myServo.updateSendPwmRamp();
-            //motor.setDesiredOutput((poop)*(1684));
             
             motor.setDesiredOutput((FWDJoy+StrafeJoy+TXJoy)*(1684));
             motor2.setDesiredOutput((FWDJoy-StrafeJoy-TXJoy)*(1684));
             motor3.setDesiredOutput((-FWDJoy-StrafeJoy+TXJoy)*(1684));
             motor4.setDesiredOutput((-FWDJoy+StrafeJoy-TXJoy)*(1684));
             motor5.setDesiredOutput((-TYJoy)*(10000));
-////////////           rest position for turret must be parallel to floor
-            /*
-            float Position = (motor4.getPositionWrapped()/2048);
-            
-            float ploop = FWDJoy - Position *.01;
-            if (FWDJoy y)
-            {
 
-              motor.setDesiredOutput(ploop); 
-              
-            }
-            */
-           //motor.setDesiredOutput((remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL))*(1000));
+            drivers->pwm.write(.2,pwmPin);
 
-            //std::cout << FWDJoy << std::endl;
-            
             drivers->djiMotorTxHandler.encodeAndSendCanData();
             
         }
@@ -209,13 +152,6 @@ static void initializeIo(src::Drivers *drivers)
     drivers->schedulerTerminalHandler.init();
     drivers->djiMotorTerminalSerialHandler.init();
     
-//  drivers->pwm.setTimerFrequency(tap::gpio::Pwm::Timer::TIMER8, 500);
-    //drivers->pwm.write(0.9f, pwmPin);
- // initializePwmSequence(src::DoNotUse_getDrivers(), pwmPin);
-
-
-
-    //drivers->pwm.write(0.15f, tap::gpio::Pwm::Pin::Z);
 }
 
 static void updateIo(src::Drivers *drivers)
