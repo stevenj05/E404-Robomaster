@@ -60,6 +60,12 @@ tap::motor::DjiMotor motor5(src::DoNotUse_getDrivers(), MOTOR_ID5, CAN_BUS, true
 tap::gpio::Pwm::Pin pwmPin = tap::gpio::Pwm::Pin::Z;
 tap::gpio::Pwm::Pin pwmPin2 = tap::gpio::Pwm::Pin::Y;
 
+tap::communication::sensors::imu::mpu6500::Mpu6500 MPU6500;
+
+float heading, actualHeading, controllerHeading, headingPower, move, MotorA, MotorB, MotorC, MotorD;
+float FWDJoy, StrafeJoy, TXJoy, TYJoy;
+bool done=false;
+
 int main()
 {
 
@@ -86,9 +92,9 @@ int main()
     motor5.initialize();
     remote.initialize();
 
-    initializeIo(drivers);
+     drivers->mpu6500.init(500.f, 0.1f, 0.0f);
 
-    float FWDJoy, StrafeJoy, TXJoy, TYJoy = 0;
+    initializeIo(drivers);
     
     drivers->pwm.setTimerFrequency(tap::gpio::Pwm::Timer::TIMER8, PWM_FREQUENCY);
 
@@ -100,9 +106,8 @@ int main()
 
     while (1)
     {
-
         remote.read();
-
+        MPU6500.read();
         PROFILE(drivers->profiler, updateIo, (drivers));
         
         if (sendMotorTimeout.execute())
@@ -111,26 +116,75 @@ int main()
             PROFILE(drivers->profiler, drivers->commandScheduler.run, ());
             PROFILE(drivers->profiler, drivers->djiMotorTxHandler.encodeAndSendCanData, ());
             PROFILE(drivers->profiler, drivers->terminalSerial.update, ());
-            
+
+             if (motor.isMotorOnline() && !done) 
+            {
+                initializePwmSequence(drivers, pwmPin, pwmPin2);
+                done = true;
+            }
+
             FWDJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL);
             StrafeJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
             TXJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
             TYJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
             
-            
+
+            // heading reading from the sensor in radians
+            actualHeading = (MPU6500.getYaw() * (M_PI/180));
+
+            // the heading given by the controller *should already be in radinas*
+            controllerHeading = atan2(FWDJoy, StrafeJoy);
+
+            // power measurement from the center of the joystick to apply to sine wave
+            headingPower = sqrt(pow(FWDJoy,2) + pow(StrafeJoy,2));
+
+            // this is the heading plus pi later used to check if motor is greater than this (Right side of the circle)
+            move = controllerHeading + M_PI; 
+
+            // each motors position in the circle
+            MotorA = (actualHeading );
+            MotorB = (actualHeading + (M_PI/2));
+            MotorC = (actualHeading + (M_PI));
+            MotorD = (actualHeading + (3*M_PI/2));
+
+            // this is where we check weather the motors position is on the right side of the circle
+            if(MotorA > move)
+            {
+
+                // apply the sine wave function to move in the direction
+                motor.setDesiredOutput(headingPower * sin(MotorA));
+            }
+
+            // else spin at this constant speed
+            else 
+            motor.setDesiredOutput(1000);
+
+            if(MotorB > move)
+            {
+                motor2.setDesiredOutput(headingPower * sin(MotorB));
+            }
+            else 
+            motor2.setDesiredOutput(1000);
+            if(MotorC > move)
+            {
+                motor3.setDesiredOutput(headingPower * sin(MotorC));
+            }
+            else 
+            motor3.setDesiredOutput(1000);
+            if(MotorD > move)
+            {
+                motor4.setDesiredOutput(headingPower * sin(MotorD));
+            }
+            else 
+            motor4.setDesiredOutput(1000);
+
+            /*
             motor.setDesiredOutput((FWDJoy+StrafeJoy+TXJoy)*(1684));
             motor2.setDesiredOutput((FWDJoy-StrafeJoy-TXJoy)*(1684));
             motor3.setDesiredOutput((-FWDJoy-StrafeJoy+TXJoy)*(1684));
             motor4.setDesiredOutput((-FWDJoy+StrafeJoy-TXJoy)*(1684));
-            motor5.setDesiredOutput((-TYJoy)*(10000));
-
-            drivers->pwm.write(.9,pwmPin);
-            drivers->pwm.write(.9,pwmPin2);
-            if (FWDJoy > 0)
-            {
-                drivers->pwm.write(.1,pwmPin2);
-                drivers->pwm.write(.1,pwmPin);
-            }
+            motor5.setDesiredOutput((-TYJoy)*(10000)); 
+            */
 
             drivers->djiMotorTxHandler.encodeAndSendCanData();
         }
@@ -170,24 +224,18 @@ static void updateIo(src::Drivers *drivers)
     drivers->remote.read();
     drivers->mpu6500.read();
 }
-/*
-void initializePwmSequence(src::Drivers *drivers, tap::gpio::Pwm::Pin pwmPin) {
-    using namespace std::chrono_literals;
-    // Step 1: Send maximum PWM value (2200 µs) for 2 seconds
-    float maxDutyCycle = PWM_MAX_US / PWM_PERIOD_US;
-    std::cout << "Setting PWM to: " << maxDutyCycle << std::endl;
-    drivers->pwm.write(maxDutyCycle, pwmPin);
+
+void initializePwmSequence(src::Drivers *drivers, tap::gpio::Pwm::Pin pwmPin, tap::gpio::Pwm::Pin pwmPin2) {
+    using namespace std::chrono_literals;  
+    
+    drivers->pwm.write(.9,pwmPin);
+    drivers->pwm.write(.9,pwmPin2);
+
     modm::delay(2000ms);
 
-    // Step 2: Send minimum PWM value (400 µs) for 2 seconds
-    float minDutyCycle = PWM_MIN_US / PWM_PERIOD_US;
-    drivers->pwm.write(minDutyCycle, pwmPin);
-    modm::delay(2000ms);
+    {
+        drivers->pwm.write(.1,pwmPin2);
+        drivers->pwm.write(.1,pwmPin);
+    }
 
-    // Step 3: Return to minimum PWM value (400 µs)
-    drivers->pwm.write(minDutyCycle, pwmPin);
-
-    // Step 4: Wait for confirmation beep (optional)
-    modm::delay(1000ms);
 }
-*/

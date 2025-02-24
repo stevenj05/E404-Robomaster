@@ -27,5 +27,3 @@
 #include "tap/communication/sensors/imu/imu_terminal_serial_handler.hpp"
 
 #include "tap/communication/serial/terminal_serial.hpp"
-
-#include "tap/motor/servo.hpp"
