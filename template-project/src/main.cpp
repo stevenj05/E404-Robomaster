@@ -32,24 +32,22 @@ static constexpr tap::motor::MotorId MOTOR_ID4 = tap::motor::MOTOR1;
 
 static constexpr tap::motor::MotorId MOTOR_ID5 = tap::motor::MOTOR5;
 
-static constexpr int DESIRED_RPM = 3000;
-
 tap::arch::PeriodicMilliTimer sendMotorTimeout(1000.0f / MAIN_LOOP_FREQUENCY);
+tap::arch::PeriodicMilliTimer updateImuTimeout(2);
 
 // Place any sort of input/output initialization here. For example, place
 // serial init stuff here.
 static void initializeIo(src::Drivers *drivers);
-/*
-void initializePwmSequence(src::Drivers *drivers,tap::gpio::Pwm::Pin pwmpin);
-*/
+
 
 // Anything that you would like to be called place here. It will be called
 // very frequently. Use PeriodicMilliTimers if you don't want something to be
 // called as frequently.
 static void updateIo(src::Drivers *drivers);
 
-tap::algorithms::SmoothPidConfig SmoothpidConfig(20, 0, 0, 0, 8000, 1, 0, 1, 0);
-tap::algorithms::SmoothPid pidController(SmoothpidConfig);
+tap::algorithms::SmoothPidConfig SmoothpidConfig1(10, 1, 1, 0, 8000, 1, 0, 1, 0);
+tap::algorithms::SmoothPid pidController(SmoothpidConfig1);
+
 
 tap::motor::DjiMotor motor(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, false, "cool motor");
 tap::motor::DjiMotor motor2(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, true, "cool motor");
@@ -60,12 +58,12 @@ tap::motor::DjiMotor motor5(src::DoNotUse_getDrivers(), MOTOR_ID5, CAN_BUS, true
 tap::gpio::Pwm::Pin pwmPin = tap::gpio::Pwm::Pin::Z;
 tap::gpio::Pwm::Pin pwmPin2 = tap::gpio::Pwm::Pin::Y;
 
-tap::communication::sensors::imu::mpu6500::Mpu6500 MPU6500;
 
-float heading, actualHeading, controllerHeading, headingPower, move, MotorA, MotorB, MotorC, MotorD;
+float heading, move, MotorA, MotorB, MotorC, MotorD, yaw,HPower;
+
 float FWDJoy, StrafeJoy, TXJoy, TYJoy;
 bool done=false;
-
+float DESIRED_RPM, DESIRED_RPM2, DESIRED_RPM3, DESIRED_RPM4;
 int main()
 {
 
@@ -91,6 +89,7 @@ int main()
     motor4.initialize();
     motor5.initialize();
     remote.initialize();
+    
 
      drivers->mpu6500.init(500.f, 0.1f, 0.0f);
 
@@ -107,9 +106,16 @@ int main()
     while (1)
     {
         remote.read();
-        MPU6500.read();
         PROFILE(drivers->profiler, updateIo, (drivers));
-        
+        drivers->mpu6500.read();
+
+        if (updateImuTimeout.execute())
+        {
+            drivers->mpu6500.periodicIMUUpdate();
+            yaw = drivers->mpu6500.getYaw();
+            // TODO use yaw
+        }
+
         if (sendMotorTimeout.execute())
         {
             PROFILE(drivers->profiler, drivers->mpu6500.periodicIMUUpdate, ());
@@ -117,66 +123,82 @@ int main()
             PROFILE(drivers->profiler, drivers->djiMotorTxHandler.encodeAndSendCanData, ());
             PROFILE(drivers->profiler, drivers->terminalSerial.update, ());
 
-             if (motor.isMotorOnline() && !done) 
-            {
-                initializePwmSequence(drivers, pwmPin, pwmPin2);
-                done = true;
-            }
-
             FWDJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL);
             StrafeJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
             TXJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
             TYJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
+
+            //move direcion 
+            move= yaw+180;
+
+            //quadrant
+            if((StrafeJoy>0) && (FWDJoy>0))
+            {heading = abs(atan(FWDJoy/StrafeJoy));}
+            if((StrafeJoy<0) && (FWDJoy>0))
+            {heading = 180 + abs(atan(FWDJoy/StrafeJoy));}
+            if((StrafeJoy<0) && (FWDJoy<0))
+            {heading = 180 + abs(atan(FWDJoy/StrafeJoy));}
+            if((StrafeJoy>0) && (FWDJoy<0))
+            {heading = 360 - abs(atan(FWDJoy/StrafeJoy));}
+
+            //heading Power
+
+            HPower = sqrt(pow(FWDJoy,2) + pow(StrafeJoy,2));
+
+            // motor position
             
+            MotorA = yaw;
+            
+            MotorB = yaw+90;
+            if(MotorB > 360)
+            {MotorB = MotorB-360;}
 
-            // heading reading from the sensor in radians
-            actualHeading = (MPU6500.getYaw() * (M_PI/180));
+            MotorC = yaw+180;
+            if(MotorC >360)
+            {MotorC = MotorC-360;}
 
-            // the heading given by the controller *should already be in radinas*
-            controllerHeading = atan2(FWDJoy, StrafeJoy);
+            MotorD = yaw+270;
+            if(MotorD>360)
+            {MotorD= MotorD-360;}
 
-            // power measurement from the center of the joystick to apply to sine wave
-            headingPower = sqrt(pow(FWDJoy,2) + pow(StrafeJoy,2));
+            //movement
 
-            // this is the heading plus pi later used to check if motor is greater than this (Right side of the circle)
-            move = controllerHeading + M_PI; 
-
-            // each motors position in the circle
-            MotorA = (actualHeading );
-            MotorB = (actualHeading + (M_PI/2));
-            MotorC = (actualHeading + (M_PI));
-            MotorD = (actualHeading + (3*M_PI/2));
-
-            // this is where we check weather the motors position is on the right side of the circle
-            if(MotorA > move)
+            if(MotorA>move)
             {
-
-                // apply the sine wave function to move in the direction
-                motor.setDesiredOutput(headingPower * sin(MotorA));
+            motor.setDesiredOutput(HPower*(sin(MotorA)));
             }
-
-            // else spin at this constant speed
-            else 
-            motor.setDesiredOutput(1000);
-
-            if(MotorB > move)
+            else
             {
-                motor2.setDesiredOutput(headingPower * sin(MotorB));
+                //some const. speed (make sure you have pid tuned and integrated )
+                motor.setDesiredOutput();
             }
-            else 
-            motor2.setDesiredOutput(1000);
-            if(MotorC > move)
+            if(MotorB>move)
             {
-                motor3.setDesiredOutput(headingPower * sin(MotorC));
+            motor2.setDesiredOutput(HPower*(sin(MotorA)));
             }
-            else 
-            motor3.setDesiredOutput(1000);
-            if(MotorD > move)
+            else
             {
-                motor4.setDesiredOutput(headingPower * sin(MotorD));
+                //some const. speed (make sure you have pid tuned and integrated )
+                motor2.setDesiredOutput();
+            }            
+            if(MotorC>move)
+            {
+            motor3.setDesiredOutput(HPower*(sin(MotorA)));
             }
-            else 
-            motor4.setDesiredOutput(1000);
+            else
+            {
+                //some const. speed (make sure you have pid tuned and integrated )
+                motor3.setDesiredOutput();
+            }
+            if(MotorD>move)
+            {
+            motor4.setDesiredOutput(HPower*(sin(MotorA)));
+            }
+            else
+            {
+                //some const. speed (make sure you have pid tuned and integrated )
+                motor4.setDesiredOutput();
+            }
 
             /*
             motor.setDesiredOutput((FWDJoy+StrafeJoy+TXJoy)*(1684));
@@ -223,19 +245,4 @@ static void updateIo(src::Drivers *drivers)
     drivers->refSerial.updateSerial();
     drivers->remote.read();
     drivers->mpu6500.read();
-}
-
-void initializePwmSequence(src::Drivers *drivers, tap::gpio::Pwm::Pin pwmPin, tap::gpio::Pwm::Pin pwmPin2) {
-    using namespace std::chrono_literals;  
-    
-    drivers->pwm.write(.9,pwmPin);
-    drivers->pwm.write(.9,pwmPin2);
-
-    modm::delay(2000ms);
-
-    {
-        drivers->pwm.write(.1,pwmPin2);
-        drivers->pwm.write(.1,pwmPin);
-    }
-
 }
