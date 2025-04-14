@@ -32,6 +32,10 @@ static constexpr tap::motor::MotorId MOTOR_ID4 = tap::motor::MOTOR1;
 
 static constexpr tap::motor::MotorId MOTOR_ID5 = tap::motor::MOTOR5;
 
+static constexpr tap::motor::MotorId MOTOR_ID6 = tap::motor::MOTOR6;
+
+static constexpr tap::motor::MotorId MOTOR_ID7 = tap::motor::MOTOR7;
+
 tap::arch::PeriodicMilliTimer sendMotorTimeout(1000.0f / MAIN_LOOP_FREQUENCY);
 tap::arch::PeriodicMilliTimer updateImuTimeout(2);
 
@@ -46,14 +50,17 @@ static void initializeIo(src::Drivers *drivers);
 static void updateIo(src::Drivers *drivers);
 
 tap::algorithms::SmoothPidConfig SmoothpidConfig1(10, 1, 1, 0, 8000, 1, 0, 1, 0);
-tap::algorithms::SmoothPid pidController(SmoothpidConfig1);
-
+tap::algorithms::SmoothPidConfig SmoothpidConfig2(10, 1, 1, 0, 8000, 1, 0, 1, 0);
+tap::algorithms::SmoothPid pidController1(SmoothpidConfig1);
+tap::algorithms::SmoothPid pidController2(SmoothpidConfig2);
 
 tap::motor::DjiMotor motor(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, false, "cool motor");
 tap::motor::DjiMotor motor2(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, true, "cool motor");
 tap::motor::DjiMotor motor3(src::DoNotUse_getDrivers(), MOTOR_ID3, CAN_BUS, false, "cool motor");
 tap::motor::DjiMotor motor4(src::DoNotUse_getDrivers(), MOTOR_ID4, CAN_BUS, true, "cool motor");
 tap::motor::DjiMotor motor5(src::DoNotUse_getDrivers(), MOTOR_ID5, CAN_BUS, true, "cool motor");
+tap::motor::DjiMotor motor6(src::DoNotUse_getDrivers(), MOTOR_ID6, CAN_BUS, true, "cool motor");
+tap::motor::DjiMotor motor7(src::DoNotUse_getDrivers(), MOTOR_ID7, CAN_BUS, true, "cool motor");
 
 tap::gpio::Pwm::Pin pwmPin = tap::gpio::Pwm::Pin::Z;
 tap::gpio::Pwm::Pin pwmPin2 = tap::gpio::Pwm::Pin::Y;
@@ -61,9 +68,10 @@ tap::gpio::Pwm::Pin pwmPin2 = tap::gpio::Pwm::Pin::Y;
 
 float heading, move, MotorA, MotorB, MotorC, MotorD, yaw,HPower;
 
-float FWDJoy, StrafeJoy, TXJoy, TYJoy;
-bool done=false;
-float DESIRED_RPM, DESIRED_RPM2, DESIRED_RPM3, DESIRED_RPM4;
+float FWDJoy, StrafeJoy, TXJoy, TYJoy, Tturn,k;
+bool done=false, f =true, d= true;
+float DESIRED_RPM, DESIRED_RPM2, DESIRED_RPM3, DESIRED_RPM4, poop;
+
 int main()
 {
 
@@ -88,8 +96,13 @@ int main()
     motor3.initialize();
     motor4.initialize();
     motor5.initialize();
+    motor6.initialize();
+    motor7.initialize();
+
     remote.initialize();
     
+
+    motor5.resetEncoderValue();
 
      drivers->mpu6500.init(500.f, 0.1f, 0.0f);
 
@@ -127,7 +140,10 @@ int main()
             StrafeJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
             TXJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
             TYJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
+            Tturn = remote.getChannel(tap::communication::serial::Remote::Channel::WHEEL);
 
+
+        /*
             //move direcion 
             move= yaw+180;
 
@@ -199,14 +215,80 @@ int main()
                 //some const. speed (make sure you have pid tuned and integrated )
                 motor4.setDesiredOutput();
             }
+*/
+            // thiss only controls amperage must introduce PID for specific RPM values
+            motor.setDesiredOutput((FWDJoy+StrafeJoy+TXJoy)*(1600));
+            motor2.setDesiredOutput((FWDJoy-StrafeJoy-TXJoy)*(1600));
+            motor3.setDesiredOutput((-FWDJoy-StrafeJoy+TXJoy)*(1600));
+            motor4.setDesiredOutput((-FWDJoy+StrafeJoy-TXJoy)*(1600));
+            motor5.setDesiredOutput((Tturn)*(10000)); 
+
+
+            if(abs(TYJoy) >0)
+            {
+                poop = poop + TYJoy*-4;
+            }
+
+            if(motor.isMotorOnline() && d)
+            {
+                motor7.resetEncoderValue();
+                d = false;
+            }
+            else if (d == false)
+        {
+            pidController1.runControllerDerivateError((poop) - (motor7.getEncoderUnwrapped() ), 1);
+            motor7.setDesiredOutput(static_cast<int32_t>(pidController1.getOutput()));
+        }
+            
 
             /*
-            motor.setDesiredOutput((FWDJoy+StrafeJoy+TXJoy)*(1684));
-            motor2.setDesiredOutput((FWDJoy-StrafeJoy-TXJoy)*(1684));
-            motor3.setDesiredOutput((-FWDJoy-StrafeJoy+TXJoy)*(1684));
-            motor4.setDesiredOutput((-FWDJoy+StrafeJoy-TXJoy)*(1684));
-            motor5.setDesiredOutput((-TYJoy)*(10000)); 
+            pidController2.runControllerDerivateError(DESIRED_RPM - motor6.getShaftRPM(), 1);
+            motor6.setDesiredOutput((pidController2.getOutput()));
             */
+           pidController2.runControllerDerivateError((k) - (motor6.getShaftRPM() ), 1);
+           motor6.setDesiredOutput(static_cast<int32_t>(pidController2.getOutput()));
+            if ( remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) == 
+            tap::communication::serial::Remote::SwitchState::UP )
+            {
+            k = 7200;
+            }
+            else if (remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) == tap::communication::serial::Remote::SwitchState::MID || remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) == tap::communication::serial::Remote::SwitchState::UNKNOWN)
+            {
+                k=0;
+            }
+            else if (remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) == tap::communication::serial::Remote::SwitchState::DOWN )
+            {
+                k= -7200;
+            }
+
+            if(f)
+            {
+            drivers->pwm.write(.9,pwmPin);
+            drivers->pwm.write(.9,pwmPin2);   
+            }
+
+
+            if ( remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) == 
+            tap::communication::serial::Remote::SwitchState::UP  && f)
+            {
+                drivers->pwm.write(.1,pwmPin);
+                drivers->pwm.write(.1,pwmPin2);
+                f= false;
+            }
+            else if (remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) == 
+            tap::communication::serial::Remote::SwitchState::DOWN)
+            {
+                drivers->pwm.write(.9,pwmPin);
+                drivers->pwm.write(.9,pwmPin2);
+            }
+            else if ((remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) == 
+            tap::communication::serial::Remote::SwitchState::MID && !f) )
+            {
+                drivers->pwm.write(.1,pwmPin);
+                drivers->pwm.write(.1,pwmPin2);
+            }
+
+
 
             drivers->djiMotorTxHandler.encodeAndSendCanData();
         }
@@ -232,7 +314,7 @@ static void initializeIo(src::Drivers *drivers)
     drivers->terminalSerial.initialize();
     drivers->schedulerTerminalHandler.init();
     drivers->djiMotorTerminalSerialHandler.init();
-    
+
 }
 
 static void updateIo(src::Drivers *drivers)
