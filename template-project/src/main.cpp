@@ -51,8 +51,16 @@ static void updateIo(src::Drivers *drivers);
 
 tap::algorithms::SmoothPidConfig SmoothpidConfig1(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig2(10, 1, 1, 0, 8000, 1, 0, 1, 0);
+tap::algorithms::SmoothPidConfig SmoothpidConfig3(10, 1, 1, 0, 8000, 1, 0, 1, 0);
+tap::algorithms::SmoothPidConfig SmoothpidConfig4(10, 1, 1, 0, 8000, 1, 0, 1, 0);
+tap::algorithms::SmoothPidConfig SmoothpidConfig5(10, 1, 1, 0, 8000, 1, 0, 1, 0);
+tap::algorithms::SmoothPidConfig SmoothpidConfig6(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPid pidController1(SmoothpidConfig1);
 tap::algorithms::SmoothPid pidController2(SmoothpidConfig2);
+tap::algorithms::SmoothPid pidController3(SmoothpidConfig3);
+tap::algorithms::SmoothPid pidController4(SmoothpidConfig4);
+tap::algorithms::SmoothPid pidController5(SmoothpidConfig5);
+tap::algorithms::SmoothPid pidController6(SmoothpidConfig6);
 
 tap::motor::DjiMotor motor(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, false, "cool motor");
 tap::motor::DjiMotor motor2(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, true, "cool motor");
@@ -217,10 +225,15 @@ int main()
             }
 */
             // thiss only controls amperage must introduce PID for specific RPM values
-            motor.setDesiredOutput((FWDJoy+StrafeJoy+TXJoy)*(1600));
-            motor2.setDesiredOutput((FWDJoy-StrafeJoy-TXJoy)*(1600));
-            motor3.setDesiredOutput((-FWDJoy-StrafeJoy+TXJoy)*(1600));
-            motor4.setDesiredOutput((-FWDJoy+StrafeJoy-TXJoy)*(1600));
+            pidController3.runControllerDerivateError(((FWDJoy+StrafeJoy+TXJoy)*1000) - (motor.getShaftRPM() ), 1);
+            pidController4.runControllerDerivateError(((FWDJoy-StrafeJoy-TXJoy)*1000) - (motor2.getShaftRPM() ), 1);
+            pidController5.runControllerDerivateError(((-FWDJoy-StrafeJoy+TXJoy)*1000) - (motor3.getShaftRPM() ), 1);
+            pidController6.runControllerDerivateError(((-FWDJoy+StrafeJoy-TXJoy)*1000) - (motor4.getShaftRPM() ), 1);
+           
+            motor.setDesiredOutput((static_cast<int32_t>(pidController3.getOutput())));
+            motor2.setDesiredOutput((static_cast<int32_t>(pidController4.getOutput())));
+            motor3.setDesiredOutput((static_cast<int32_t>(pidController5.getOutput())));
+            motor4.setDesiredOutput((static_cast<int32_t>(pidController6.getOutput())));
             motor5.setDesiredOutput((Tturn)*(10000)); 
 
 
