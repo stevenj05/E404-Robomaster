@@ -74,9 +74,9 @@ tap::gpio::Pwm::Pin pwmPin = tap::gpio::Pwm::Pin::Z;
 tap::gpio::Pwm::Pin pwmPin2 = tap::gpio::Pwm::Pin::Y;
 
 
-float heading, move, MotorA, MotorB, MotorC, MotorD, yaw,HPower;
+float heading, move, MotorA, MotorB, MotorC, MotorD, yaw, HPower;
 
-float FWDJoy, StrafeJoy, TXJoy, TYJoy, Tturn,k;
+float FWDJoy, StrafeJoy, TXJoy, TYJoy, Tturn, k;
 bool done=false, f =true, d= true;
 float DESIRED_RPM, DESIRED_RPM2, DESIRED_RPM3, DESIRED_RPM4, poop;
 
