@@ -22,6 +22,8 @@ static constexpr float PWM_FREQUENCY = 500.0f;
 
 static constexpr tap::can::CanBus CAN_BUS = tap::can::CanBus::CAN_BUS1;
 
+
+
 static constexpr tap::motor::MotorId MOTOR_ID = tap::motor::MOTOR2;
 
 static constexpr tap::motor::MotorId MOTOR_ID2 = tap::motor::MOTOR3;
@@ -35,6 +37,16 @@ static constexpr tap::motor::MotorId MOTOR_ID5 = tap::motor::MOTOR5;
 static constexpr tap::motor::MotorId MOTOR_ID6 = tap::motor::MOTOR6;
 
 static constexpr tap::motor::MotorId MOTOR_ID7 = tap::motor::MOTOR7;
+
+
+
+/*
+static constexpr tap::motor::MotorId MOTOR_ID = tap::motor::MOTOR;
+
+static constexpr tap::motor::MotorId MOTOR_ID = tap::motor::MOTOR;
+
+*/
+
 
 tap::arch::PeriodicMilliTimer sendMotorTimeout(1000.0f / MAIN_LOOP_FREQUENCY);
 tap::arch::PeriodicMilliTimer updateImuTimeout(2);
@@ -70,8 +82,9 @@ tap::motor::DjiMotor motor5(src::DoNotUse_getDrivers(), MOTOR_ID5, CAN_BUS, true
 tap::motor::DjiMotor motor6(src::DoNotUse_getDrivers(), MOTOR_ID6, CAN_BUS, true, "cool motor");
 tap::motor::DjiMotor motor7(src::DoNotUse_getDrivers(), MOTOR_ID7, CAN_BUS, true, "cool motor");
 
-tap::gpio::Pwm::Pin pwmPin = tap::gpio::Pwm::Pin::Z;
-tap::gpio::Pwm::Pin pwmPin2 = tap::gpio::Pwm::Pin::Y;
+tap::motor::DjiMotor motor8(src::DoNotUse_getDrivers(), MOTOR_ID7, CAN_BUS, true, "cool motor");
+tap::motor::DjiMotor motor9(src::DoNotUse_getDrivers(), MOTOR_ID7, CAN_BUS, true, "cool motor");
+
 
 
 float heading, move, MotorA, MotorB, MotorC, MotorD, yaw, HPower;
@@ -274,31 +287,22 @@ int main()
                 k= -7200;
             }
 
-            if(f)
-            {
-            drivers->pwm.write(.9,pwmPin);
-            drivers->pwm.write(.9,pwmPin2);   
-            }
 
 
             if ( remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) == 
-            tap::communication::serial::Remote::SwitchState::UP  && f)
+            tap::communication::serial::Remote::SwitchState::UP )
             {
-                drivers->pwm.write(.1,pwmPin);
-                drivers->pwm.write(.1,pwmPin2);
-                f= false;
+                
             }
             else if (remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) == 
             tap::communication::serial::Remote::SwitchState::DOWN)
             {
-                drivers->pwm.write(.9,pwmPin);
-                drivers->pwm.write(.9,pwmPin2);
+
             }
             else if ((remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) == 
-            tap::communication::serial::Remote::SwitchState::MID && !f) )
+            tap::communication::serial::Remote::SwitchState::MID ) )
             {
-                drivers->pwm.write(.1,pwmPin);
-                drivers->pwm.write(.1,pwmPin2);
+ 
             }
 
 
