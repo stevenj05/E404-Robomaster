@@ -21,6 +21,7 @@ static constexpr float MAIN_LOOP_FREQUENCY = 500.0f;
 static constexpr float PWM_FREQUENCY = 500.0f;
 
 static constexpr tap::can::CanBus CAN_BUS = tap::can::CanBus::CAN_BUS1;
+static constexpr tap::can::CanBus CAN_BUS2 = tap::can::CanBus::CAN_BUS2;
 
 
 
@@ -38,12 +39,16 @@ static constexpr tap::motor::MotorId MOTOR_ID6 = tap::motor::MOTOR6;
 
 static constexpr tap::motor::MotorId MOTOR_ID7 = tap::motor::MOTOR7;
 
+static constexpr tap::motor::MotorId MOTOR_ID8 = tap::motor::MOTOR8;
+
+
+
 
 
 /*
-static constexpr tap::motor::MotorId MOTOR_ID = tap::motor::MOTOR;
 
-static constexpr tap::motor::MotorId MOTOR_ID = tap::motor::MOTOR;
+
+static constexpr tap::motor::MotorId MOTOR_ID9 = tap::motor::MOTOR;
 
 */
 
@@ -81,9 +86,10 @@ tap::motor::DjiMotor motor4(src::DoNotUse_getDrivers(), MOTOR_ID4, CAN_BUS, true
 tap::motor::DjiMotor motor5(src::DoNotUse_getDrivers(), MOTOR_ID5, CAN_BUS, true, "cool motor");
 tap::motor::DjiMotor motor6(src::DoNotUse_getDrivers(), MOTOR_ID6, CAN_BUS, true, "cool motor");
 tap::motor::DjiMotor motor7(src::DoNotUse_getDrivers(), MOTOR_ID7, CAN_BUS, true, "cool motor");
+tap::motor::DjiMotor motor8(src::DoNotUse_getDrivers(), MOTOR_ID8, CAN_BUS2, true, "cool motor");
+tap::motor::DjiMotor motor9(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS2, true, "cool motor");
 
-tap::motor::DjiMotor motor8(src::DoNotUse_getDrivers(), MOTOR_ID7, CAN_BUS, true, "cool motor");
-tap::motor::DjiMotor motor9(src::DoNotUse_getDrivers(), MOTOR_ID7, CAN_BUS, true, "cool motor");
+
 
 
 
@@ -119,6 +125,9 @@ int main()
     motor5.initialize();
     motor6.initialize();
     motor7.initialize();
+    motor8.initialize();
+    motor9.initialize();
+    
 
     remote.initialize();
     
@@ -242,12 +251,14 @@ int main()
             pidController4.runControllerDerivateError(((FWDJoy-StrafeJoy-TXJoy)*1000) - (motor2.getShaftRPM() ), 1);
             pidController5.runControllerDerivateError(((-FWDJoy-StrafeJoy+TXJoy)*1000) - (motor3.getShaftRPM() ), 1);
             pidController6.runControllerDerivateError(((-FWDJoy+StrafeJoy-TXJoy)*1000) - (motor4.getShaftRPM() ), 1);
+            
            
             motor.setDesiredOutput((static_cast<int32_t>(pidController3.getOutput())));
             motor2.setDesiredOutput((static_cast<int32_t>(pidController4.getOutput())));
             motor3.setDesiredOutput((static_cast<int32_t>(pidController5.getOutput())));
             motor4.setDesiredOutput((static_cast<int32_t>(pidController6.getOutput())));
             motor5.setDesiredOutput((Tturn)*(10000)); 
+            
 
 
             if(abs(TYJoy) >0)
@@ -292,15 +303,20 @@ int main()
             if ( remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) == 
             tap::communication::serial::Remote::SwitchState::UP )
             {
-                
+                motor8.setDesiredOutput(8000);
+                motor9.setDesiredOutput(8000);
+
             }
             else if (remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) == 
             tap::communication::serial::Remote::SwitchState::DOWN)
             {
-
+                motor8.setDesiredOutput(-8000);
+                motor9.setDesiredOutput(-8000);
             }
             else if ((remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) == 
             tap::communication::serial::Remote::SwitchState::MID ) )
+                motor8.setDesiredOutput(0);
+                motor9.setDesiredOutput(0);
             {
  
             }
