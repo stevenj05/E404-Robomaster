@@ -53,6 +53,7 @@ static void initializeIo(src::Drivers *drivers);
 // very frequently. Use PeriodicMilliTimers if you don't want something to be
 // called as frequently.
 static void updateIo(src::Drivers *drivers);
+void updateFlywheels(float deltaTime);
 
 tap::algorithms::SmoothPidConfig SmoothpidConfig1(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig2(10, 1, 1, 0, 8000, 1, 0, 1, 0);
@@ -60,12 +61,16 @@ tap::algorithms::SmoothPidConfig SmoothpidConfig3(10, 1, 1, 0, 8000, 1, 0, 1, 0)
 tap::algorithms::SmoothPidConfig SmoothpidConfig4(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig5(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig6(10, 1, 1, 0, 8000, 1, 0, 1, 0);
+tap::algorithms::SmoothPidConfig flywheel1PidConfig{10, 0, 0, 0, 0, 1, 0, 1, 0};
+tap::algorithms::SmoothPidConfig flywheel2PidConfig{10, 0, 0, 0, 0, 1, 0, 1, 0};
 tap::algorithms::SmoothPid pidController1(SmoothpidConfig1);
 tap::algorithms::SmoothPid pidController2(SmoothpidConfig2);
 tap::algorithms::SmoothPid pidController3(SmoothpidConfig3);
 tap::algorithms::SmoothPid pidController4(SmoothpidConfig4);
 tap::algorithms::SmoothPid pidController5(SmoothpidConfig5);
 tap::algorithms::SmoothPid pidController6(SmoothpidConfig6);
+tap::algorithms::SmoothPid flywheel1Pid(flywheel1PidConfig);
+tap::algorithms::SmoothPid flywheel2Pid(flywheel2PidConfig);
 
 tap::motor::DjiMotor motor(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, false, "cool motor");
 tap::motor::DjiMotor motor2(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, true, "cool motor");
@@ -76,6 +81,9 @@ tap::motor::DjiMotor motor6(src::DoNotUse_getDrivers(), MOTOR_ID6, CAN_BUS, true
 tap::motor::DjiMotor motor7(src::DoNotUse_getDrivers(), MOTOR_ID7, CAN_BUS, true, "cool motor");
 tap::motor::DjiMotor flywheel1(src::DoNotUse_getDrivers(), MOTOR_ID8, CAN_BUS2, true, "cool motor");
 tap::motor::DjiMotor flywheel2(src::DoNotUse_getDrivers(), MOTOR_ID9, CAN_BUS2, false, "cool motor");
+
+float flywheel1DesiredRPM{0.0f};
+float flywheel2DesiredRPM{0.0f};
 
 float heading, move, MotorA, MotorB, MotorC, MotorD, yaw, HPower;
 
@@ -317,6 +325,19 @@ int main()
         modm::delay_us(100);
     }
     return 0;
+}
+
+void updateFlywheels(float deltaTime)
+{
+    const double flywheel1Error{flywheel1DesiredRPM - flywheel1.getShaftRPM()};
+    const double flywheel1derivativeError{flywheel1Pid.runControllerDerivateError(flywheel1Error, deltaTime)};
+    const double flywheel1output{flywheel1Pid.runController(flywheel1Error, flywheel1derivativeError, deltaTime)};
+    flywheel1.setDesiredOutput(static_cast<int32_t>(flywheel1output));
+
+    const double flywheel2Error{flywheel2DesiredRPM - flywheel2.getShaftRPM()};
+    const double flywheel2derivativeError{flywheel2Pid.runControllerDerivateError(flywheel2Error, deltaTime)};
+    const double flywheel2output{flywheel2Pid.runController(flywheel2Error, flywheel2derivativeError, deltaTime)};
+    flywheel2.setDesiredOutput(static_cast<int32_t>(flywheel2output));
 }
 
 static void initializeIo(src::Drivers *drivers)
