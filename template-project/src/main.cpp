@@ -46,7 +46,7 @@ static constexpr tap::motor::MotorId MOTOR_ID9 = tap::motor::MOTOR1;
 tap::arch::PeriodicMilliTimer sendMotorTimeout(1000.0f / MAIN_LOOP_FREQUENCY);
 tap::arch::PeriodicMilliTimer updateImuTimeout(2);
 
-constexpr float k_flywheelSpeed{1000.0f};
+constexpr float k_flywheelSpeed{4000.0f};
 
 modm::PreciseClock theClock{};
 modm::chrono::micro_clock::time_point epoch;
@@ -67,8 +67,8 @@ tap::algorithms::SmoothPidConfig SmoothpidConfig3(10, 1, 1, 0, 8000, 1, 0, 1, 0)
 tap::algorithms::SmoothPidConfig SmoothpidConfig4(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig5(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig6(10, 1, 1, 0, 8000, 1, 0, 1, 0);
-tap::algorithms::SmoothPidConfig flywheel1PidConfig{10, 0, 0, 0, 0, 1, 0, 1, 0};
-tap::algorithms::SmoothPidConfig flywheel2PidConfig{10, 0, 0, 0, 0, 1, 0, 1, 0};
+tap::algorithms::SmoothPidConfig flywheel1PidConfig{100, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};
+tap::algorithms::SmoothPidConfig flywheel2PidConfig{100, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};
 tap::algorithms::SmoothPid pidController1(SmoothpidConfig1);
 tap::algorithms::SmoothPid pidController2(SmoothpidConfig2);
 tap::algorithms::SmoothPid pidController3(SmoothpidConfig3);
@@ -317,8 +317,8 @@ int main()
             else if ((remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
                       tap::communication::serial::Remote::SwitchState::MID))
             {
-                flywheel1DesiredRPM = k_flywheelSpeed;
-                flywheel2DesiredRPM = k_flywheelSpeed;
+                flywheel1DesiredRPM = 0.0f;
+                flywheel2DesiredRPM = 0.0f;
             }
 
             drivers->djiMotorTxHandler.encodeAndSendCanData();
