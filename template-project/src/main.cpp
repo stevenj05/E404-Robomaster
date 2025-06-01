@@ -45,6 +45,8 @@ static constexpr tap::motor::MotorId MOTOR_ID9 = tap::motor::MOTOR1;
 tap::arch::PeriodicMilliTimer sendMotorTimeout(1000.0f / MAIN_LOOP_FREQUENCY);
 tap::arch::PeriodicMilliTimer updateImuTimeout(2);
 
+constexpr float k_flywheelSpeed{1000.0f};
+
 // Place any sort of input/output initialization here. For example, place
 // serial init stuff here.
 static void initializeIo(src::Drivers *drivers);
@@ -300,21 +302,19 @@ int main()
             if (remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
                 tap::communication::serial::Remote::SwitchState::UP)
             {
-                flywheel1.setDesiredOutput(1000);
-                flywheel2.setDesiredOutput(1000);
+                flywheel1DesiredRPM = k_flywheelSpeed;
+                flywheel2DesiredRPM = k_flywheelSpeed;
             }
             else if (
                 remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
                 tap::communication::serial::Remote::SwitchState::DOWN)
             {
-                flywheel1.setDesiredOutput(-1000);
-                flywheel2.setDesiredOutput(-1000);
             }
             else if ((remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
                       tap::communication::serial::Remote::SwitchState::MID))
             {
-                flywheel1.setDesiredOutput(0);
-                flywheel2.setDesiredOutput(0);
+                flywheel1DesiredRPM = k_flywheelSpeed;
+                flywheel2DesiredRPM = k_flywheelSpeed;
             }
 
             drivers->djiMotorTxHandler.encodeAndSendCanData();
