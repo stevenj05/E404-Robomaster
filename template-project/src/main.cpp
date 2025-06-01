@@ -11,6 +11,7 @@
 #endif
 
 #include "refrenceHead.hpp"
+#include "modm/architecture/interface/clock.hpp"
 
 /* Our Headers -------------------------------------------------------*/
 #include "stuffh.hpp"
@@ -47,6 +48,9 @@ tap::arch::PeriodicMilliTimer updateImuTimeout(2);
 
 constexpr float k_flywheelSpeed{1000.0f};
 
+modm::PreciseClock theClock{};
+modm::chrono::micro_clock::time_point epoch;
+using MicrosecondDuration = modm::PreciseClock::duration;
 // Place any sort of input/output initialization here. For example, place
 // serial init stuff here.
 static void initializeIo(src::Drivers *drivers);
@@ -321,6 +325,10 @@ int main()
         }
 
         drivers->canRxHandler.pollCanData();
+
+        modm::chrono::micro_clock::time_point now{theClock.now()};
+        modm::PreciseClock::duration duration{now - epoch};
+        updateFlywheels(duration.count());
 
         modm::delay_us(100);
     }
