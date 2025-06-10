@@ -46,7 +46,9 @@ static constexpr tap::motor::MotorId MOTOR_ID9 = tap::motor::MOTOR1;
 tap::arch::PeriodicMilliTimer sendMotorTimeout(1000.0f / MAIN_LOOP_FREQUENCY);
 tap::arch::PeriodicMilliTimer updateImuTimeout(2);
 
-constexpr float k_flywheelSpeed{4000.0f};
+//motor1-4:Drive train motors | motor 6: 2006 Agitator | motor 5&7: Yaw and Pitch 6020
+
+constexpr float k_flywheelSpeed{7200};
 
 modm::PreciseClock theClock{};
 modm::chrono::micro_clock::time_point epoch;
@@ -61,14 +63,14 @@ static void initializeIo(src::Drivers *drivers);
 static void updateIo(src::Drivers *drivers);
 void updateFlywheels(float deltaTime);
 
-tap::algorithms::SmoothPidConfig SmoothpidConfig1(10, 1, 1, 0, 8000, 1, 0, 1, 0);
+tap::algorithms::SmoothPidConfig SmoothpidConfig1(100, 1, 20, 0, 12000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig2(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig3(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig4(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig5(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig6(10, 1, 1, 0, 8000, 1, 0, 1, 0);
-tap::algorithms::SmoothPidConfig flywheel1PidConfig{100, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};
-tap::algorithms::SmoothPidConfig flywheel2PidConfig{100, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};
+tap::algorithms::SmoothPidConfig flywheel1PidConfig{20, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};//PID tuning for flywheels
+tap::algorithms::SmoothPidConfig flywheel2PidConfig{20, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};//PID tuning for flywheels
 tap::algorithms::SmoothPid pidController1(SmoothpidConfig1);
 tap::algorithms::SmoothPid pidController2(SmoothpidConfig2);
 tap::algorithms::SmoothPid pidController3(SmoothpidConfig3);
@@ -78,15 +80,15 @@ tap::algorithms::SmoothPid pidController6(SmoothpidConfig6);
 tap::algorithms::SmoothPid flywheel1Pid(flywheel1PidConfig);
 tap::algorithms::SmoothPid flywheel2Pid(flywheel2PidConfig);
 
-tap::motor::DjiMotor motor(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, false, "cool motor");
-tap::motor::DjiMotor motor2(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, true, "cool motor");
-tap::motor::DjiMotor motor3(src::DoNotUse_getDrivers(), MOTOR_ID3, CAN_BUS, false, "cool motor");
-tap::motor::DjiMotor motor4(src::DoNotUse_getDrivers(), MOTOR_ID4, CAN_BUS, true, "cool motor");
+tap::motor::DjiMotor motor(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS2, false, "cool motor");
+tap::motor::DjiMotor motor2(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS2, true, "cool motor");
+tap::motor::DjiMotor motor3(src::DoNotUse_getDrivers(), MOTOR_ID3, CAN_BUS2, false, "cool motor");
+tap::motor::DjiMotor motor4(src::DoNotUse_getDrivers(), MOTOR_ID4, CAN_BUS2, true, "cool motor");
 tap::motor::DjiMotor motor5(src::DoNotUse_getDrivers(), MOTOR_ID5, CAN_BUS, true, "cool motor");
 tap::motor::DjiMotor motor6(src::DoNotUse_getDrivers(), MOTOR_ID6, CAN_BUS, true, "cool motor");
 tap::motor::DjiMotor motor7(src::DoNotUse_getDrivers(), MOTOR_ID7, CAN_BUS, true, "cool motor");
-tap::motor::DjiMotor flywheel1(src::DoNotUse_getDrivers(), MOTOR_ID8, CAN_BUS2, true, "cool motor");
-tap::motor::DjiMotor flywheel2(src::DoNotUse_getDrivers(), MOTOR_ID9, CAN_BUS2, false, "cool motor");
+tap::motor::DjiMotor flywheel1(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, false, "cool motor");
+tap::motor::DjiMotor flywheel2(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, false, "cool motor");
 
 float flywheel1DesiredRPM{0.0f};
 float flywheel2DesiredRPM{0.0f};
@@ -95,7 +97,7 @@ float heading, move, MotorA, MotorB, MotorC, MotorD, yaw, HPower;
 
 float FWDJoy, StrafeJoy, TXJoy, TYJoy, Tturn, k;
 bool done = false, f = true, d = true;
-float DESIRED_RPM, DESIRED_RPM2, DESIRED_RPM3, DESIRED_RPM4, poop;
+float DESIRED_RPM, DESIRED_RPM2, DESIRED_RPM3, DESIRED_RPM4, gimbalTargetPos;
 
 int main()
 {
@@ -239,40 +241,41 @@ int main()
                     motor4.setDesiredOutput();
                 }
     */
-            // thiss only controls amperage must introduce PID for specific RPM values
+            
             pidController3.runControllerDerivateError(
-                ((FWDJoy + StrafeJoy + TXJoy) * 4500) - (motor.getShaftRPM()),
+                ((FWDJoy + StrafeJoy + TXJoy) * 4000) - (motor.getShaftRPM()),
                 1);
             pidController4.runControllerDerivateError(
-                ((FWDJoy - StrafeJoy - TXJoy) * 4500) - (motor2.getShaftRPM()),
+                ((FWDJoy - StrafeJoy - TXJoy) * 4000) - (motor2.getShaftRPM()),
                 1);
             pidController5.runControllerDerivateError(
-                ((-FWDJoy - StrafeJoy + TXJoy) * 4500) - (motor3.getShaftRPM()),
+                ((-FWDJoy - StrafeJoy + TXJoy) * 4000) - (motor3.getShaftRPM()),
                 1);
             pidController6.runControllerDerivateError(
-                ((-FWDJoy + StrafeJoy - TXJoy) * 4500) - (motor4.getShaftRPM()),
+                ((-FWDJoy + StrafeJoy - TXJoy) * 4000) - (motor4.getShaftRPM()),
                 1);
 
             motor.setDesiredOutput((static_cast<int32_t>(pidController3.getOutput())));
             motor2.setDesiredOutput((static_cast<int32_t>(pidController4.getOutput())));
             motor3.setDesiredOutput((static_cast<int32_t>(pidController5.getOutput())));
             motor4.setDesiredOutput((static_cast<int32_t>(pidController6.getOutput())));
-            motor5.setDesiredOutput((Tturn) * (10000));
+            motor5.setDesiredOutput((Tturn) * (30000));
 
             if (abs(TYJoy) > 0)
             {
-                poop = poop + TYJoy * -4;
+                gimbalTargetPos = gimbalTargetPos + TYJoy * 10;//value to change for Gimbal Pitch
             }
 
             if (motor.isMotorOnline() && d)
             {
-                motor7.resetEncoderValue();
+                //motor7.resetEncoderValue();
+                gimbalTargetPos = motor7.getEncoderUnwrapped();
                 d = false;
             }
             else if (d == false)
             {
                 pidController1.runControllerDerivateError(
-                    (poop) - (motor7.getEncoderUnwrapped()),
+                    (gimbalTargetPos) - (motor7.getEncoderUnwrapped()),
                     1);
                 motor7.setDesiredOutput(static_cast<int32_t>(pidController1.getOutput()));
             }
