@@ -69,6 +69,7 @@ tap::algorithms::SmoothPidConfig SmoothpidConfig3(10, 1, 1, 0, 8000, 1, 0, 1, 0)
 tap::algorithms::SmoothPidConfig SmoothpidConfig4(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig5(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig6(10, 1, 1, 0, 8000, 1, 0, 1, 0);
+tap::algorithms::SmoothPidConfig SmoothpidConfig7(35, 1, 4, 0, 16000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig flywheel1PidConfig{20, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};//PID tuning for flywheels
 tap::algorithms::SmoothPidConfig flywheel2PidConfig{20, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};//PID tuning for flywheels
 tap::algorithms::SmoothPid pidController1(SmoothpidConfig1);
@@ -77,6 +78,7 @@ tap::algorithms::SmoothPid pidController3(SmoothpidConfig3);
 tap::algorithms::SmoothPid pidController4(SmoothpidConfig4);
 tap::algorithms::SmoothPid pidController5(SmoothpidConfig5);
 tap::algorithms::SmoothPid pidController6(SmoothpidConfig6);
+tap::algorithms::SmoothPid pidController7(SmoothpidConfig7);
 tap::algorithms::SmoothPid flywheel1Pid(flywheel1PidConfig);
 tap::algorithms::SmoothPid flywheel2Pid(flywheel2PidConfig);
 
@@ -97,7 +99,7 @@ float heading, move, MotorA, MotorB, MotorC, MotorD, yaw, HPower;
 
 float FWDJoy, StrafeJoy, TXJoy, TYJoy, Tturn, k;
 bool done = false, f = true, d = true;
-float DESIRED_RPM, DESIRED_RPM2, DESIRED_RPM3, DESIRED_RPM4, gimbalTargetPos;
+float DESIRED_RPM, DESIRED_RPM2, DESIRED_RPM3, DESIRED_RPM4,gimbalYawTargetPos, gimbalTargetPos;
 
 int main()
 {
@@ -171,46 +173,78 @@ int main()
             // === Beyblade Mode: Spin chassis while holding gimbal ===
             static float yawHoldTarget = 0.0f;
             static bool lastBeybladeState = false;
+            static bool waitingForStabilize = false;
+            static int stabilizeCounter = 0;
 
             bool beybladeMode = (
                 remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
                 tap::communication::serial::Remote::SwitchState::DOWN);
-
+                
             if (beybladeMode)
             {
-                // Lock gimbal yaw target on entry
-            if (!lastBeybladeState)
-        {
-                yawHoldTarget = yaw;  // Capture current yaw angle
-                lastBeybladeState = true;
+                if (!lastBeybladeState)
+                {
+                    lastBeybladeState = true;
+                    waitingForStabilize = false;
+                    stabilizeCounter = 0;
                 }
 
-                // Spin drivetrain in place (alternating wheels)
-            motor.setDesiredOutput(12000);
-            motor2.setDesiredOutput(-12000);
-            motor3.setDesiredOutput(12000);
-            motor4.setDesiredOutput(-12000);
-
-    // Hold gimbal yaw position using IMU
-            float yawError = yawHoldTarget - yaw;
-
-    // Optional: Wrap angle to [-180, 180] for better error
-            if (yawError > 180.0f) yawError -= 360.0f;
-            if (yawError < -180.0f) yawError += 360.0f;
-
-            pidController1.runControllerDerivateError(yawError, 1);
-            motor5.setDesiredOutput(static_cast<int32_t>(pidController1.getOutput()));
-
-    // Pitch (motor7) stays under joystick control if needed
-            if (abs(TYJoy) > 0)
-                gimbalTargetPos += TYJoy * 8;
-            pidController5.runControllerDerivateError(gimbalTargetPos - motor7.getEncoderUnwrapped(), 1);
-            motor7.setDesiredOutput(static_cast<int32_t>(pidController5.getOutput()));
-        }
+                // Manual control logic during beyblade
+                motor5.setDesiredOutput(14800 + (Tturn * 4000));
+            }
             else
-        {
-            lastBeybladeState = false;
-        }
+            {
+                // === Transition: just exited beyblade ===
+                if (lastBeybladeState)
+                {
+                    waitingForStabilize = true;
+                    stabilizeCounter = 0;
+                    lastBeybladeState = false;
+                }
+
+                // === Stabilization phase: wait until yaw stops ===
+                if (waitingForStabilize)
+                {
+                    // Actively brake using proportional damping
+                    float brakingTorque = -motor5.getShaftRPM() * 10.0f;  // Tweak this factor as needed
+                    brakingTorque = std::clamp(brakingTorque, -8000.0f, 8000.0f);  // Safe limit
+                    motor5.setDesiredOutput(static_cast<int32_t>(brakingTorque));
+
+                    // Check if stable
+                    if (fabsf(motor5.getShaftRPM()) < 2.0f)
+                    {
+                        stabilizeCounter++;
+                        if (stabilizeCounter >= 10)
+                        {
+                            gimbalYawTargetPos = motor5.getEncoderUnwrapped();
+                            waitingForStabilize = false;
+                        }
+                    }
+                    else
+                    {
+                        stabilizeCounter = 0;
+                    }
+                }
+
+
+                // === Only adjust target if NOT stabilizing ===
+                const float scalingFactor = 20.0f;
+                if (!waitingForStabilize && fabs(Tturn) > 0.01f)
+                {
+                    gimbalYawTargetPos += Tturn * scalingFactor;
+                }
+
+                // === Only run PID once target is stable ===
+                if (!waitingForStabilize)
+                {
+                    pidController7.runControllerDerivateError(
+                        gimbalYawTargetPos - motor5.getEncoderUnwrapped(),
+                        1
+                    );
+                    motor5.setDesiredOutput(static_cast<int32_t>(pidController7.getOutput()));
+                }
+            }
+
 
             /*
                 //move direcion
@@ -285,25 +319,25 @@ int main()
                     motor4.setDesiredOutput();
                 }
     */
-            
+            float rotation = beybladeMode ? 1.0f : 0.0f;
             pidController3.runControllerDerivateError(
-                ((FWDJoy + StrafeJoy + TXJoy) * 4000) - (motor.getShaftRPM()),
+                ((FWDJoy + StrafeJoy + TXJoy + rotation) * 4000) - (motor.getShaftRPM()),
                 1);
             pidController4.runControllerDerivateError(
-                ((FWDJoy - StrafeJoy - TXJoy) * 4000) - (motor2.getShaftRPM()),
+                ((FWDJoy - StrafeJoy - TXJoy - rotation) * 4000) - (motor2.getShaftRPM()),
                 1);
             pidController5.runControllerDerivateError(
-                ((-FWDJoy - StrafeJoy + TXJoy) * 4000) - (motor3.getShaftRPM()),
+                ((-FWDJoy - StrafeJoy + TXJoy + rotation) * 4000) - (motor3.getShaftRPM()),
                 1);
             pidController6.runControllerDerivateError(
-                ((-FWDJoy + StrafeJoy - TXJoy) * 4000) - (motor4.getShaftRPM()),
+                ((-FWDJoy + StrafeJoy - TXJoy - rotation) * 4000) - (motor4.getShaftRPM()),
                 1);
 
             motor.setDesiredOutput((static_cast<int32_t>(pidController3.getOutput())));
             motor2.setDesiredOutput((static_cast<int32_t>(pidController4.getOutput())));
             motor3.setDesiredOutput((static_cast<int32_t>(pidController5.getOutput())));
             motor4.setDesiredOutput((static_cast<int32_t>(pidController6.getOutput())));
-            motor5.setDesiredOutput((Tturn) * (30000));
+            //motor5.setDesiredOutput((Tturn) * (30000));//Gimble Yaw speed controll/wheel toggle
 
             if (abs(TYJoy) > 0)
             {
