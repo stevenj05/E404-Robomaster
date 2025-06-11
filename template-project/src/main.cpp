@@ -167,6 +167,50 @@ int main()
             TXJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
             TYJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
             Tturn = remote.getChannel(tap::communication::serial::Remote::Channel::WHEEL);
+            
+            // === Beyblade Mode: Spin chassis while holding gimbal ===
+            static float yawHoldTarget = 0.0f;
+            static bool lastBeybladeState = false;
+
+            bool beybladeMode = (
+                remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
+                tap::communication::serial::Remote::SwitchState::DOWN);
+
+            if (beybladeMode)
+            {
+                // Lock gimbal yaw target on entry
+            if (!lastBeybladeState)
+        {
+                yawHoldTarget = yaw;  // Capture current yaw angle
+                lastBeybladeState = true;
+                }
+
+                // Spin drivetrain in place (alternating wheels)
+            motor.setDesiredOutput(12000);
+            motor2.setDesiredOutput(-12000);
+            motor3.setDesiredOutput(12000);
+            motor4.setDesiredOutput(-12000);
+
+    // Hold gimbal yaw position using IMU
+            float yawError = yawHoldTarget - yaw;
+
+    // Optional: Wrap angle to [-180, 180] for better error
+            if (yawError > 180.0f) yawError -= 360.0f;
+            if (yawError < -180.0f) yawError += 360.0f;
+
+            pidController1.runControllerDerivateError(yawError, 1);
+            motor5.setDesiredOutput(static_cast<int32_t>(pidController1.getOutput()));
+
+    // Pitch (motor7) stays under joystick control if needed
+            if (abs(TYJoy) > 0)
+                gimbalTargetPos += TYJoy * 8;
+            pidController5.runControllerDerivateError(gimbalTargetPos - motor7.getEncoderUnwrapped(), 1);
+            motor7.setDesiredOutput(static_cast<int32_t>(pidController5.getOutput()));
+        }
+            else
+        {
+            lastBeybladeState = false;
+        }
 
             /*
                 //move direcion
