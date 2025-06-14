@@ -63,7 +63,7 @@ static void initializeIo(src::Drivers *drivers);
 static void updateIo(src::Drivers *drivers);
 void updateFlywheels(float deltaTime);
 
-tap::algorithms::SmoothPidConfig SmoothpidConfig1(100, 1, 20, 0, 12000, 1, 0, 1, 0);
+tap::algorithms::SmoothPidConfig SmoothpidConfig1(55, 1, 5, 0, 16000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig2(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig3(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig4(10, 1, 1, 0, 8000, 1, 0, 1, 0);
@@ -90,7 +90,7 @@ tap::motor::DjiMotor motor5(src::DoNotUse_getDrivers(), MOTOR_ID5, CAN_BUS, true
 tap::motor::DjiMotor motor6(src::DoNotUse_getDrivers(), MOTOR_ID6, CAN_BUS, true, "cool motor");
 tap::motor::DjiMotor motor7(src::DoNotUse_getDrivers(), MOTOR_ID7, CAN_BUS, true, "cool motor");
 tap::motor::DjiMotor flywheel1(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, false, "cool motor");
-tap::motor::DjiMotor flywheel2(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, false, "cool motor");
+tap::motor::DjiMotor flywheel2(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, true, "cool motor");
 
 float flywheel1DesiredRPM{0.0f};
 float flywheel2DesiredRPM{0.0f};
@@ -228,7 +228,7 @@ int main()
 
 
                 // === Only adjust target if NOT stabilizing ===
-                const float scalingFactor = 20.0f;
+                const float scalingFactor = 40.0f;
                 if (!waitingForStabilize && fabs(Tturn) > 0.01f)
                 {
                     gimbalYawTargetPos += Tturn * scalingFactor;
@@ -341,7 +341,7 @@ int main()
 
             if (abs(TYJoy) > 0)
             {
-                gimbalTargetPos = gimbalTargetPos + TYJoy * 10;//value to change for Gimbal Pitch
+                gimbalTargetPos = gimbalTargetPos + TYJoy * -6;//value to change for Gimbal Pitch
             }
 
             if (motor.isMotorOnline() && d)
@@ -367,7 +367,14 @@ int main()
             if (remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
                 tap::communication::serial::Remote::SwitchState::UP)
             {
-                k = 2200;
+                k = 40000;
+            }
+            
+            else if (
+                remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
+                tap::communication::serial::Remote::SwitchState::UP)
+            {
+                k = -3200;
             }
             else if (
                 remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
@@ -377,26 +384,21 @@ int main()
             {
                 k = 0;
             }
-            else if (
-                remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
-                tap::communication::serial::Remote::SwitchState::DOWN)
-            {
-                k = -2200;
-            }
 
             if (remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
-                tap::communication::serial::Remote::SwitchState::UP)
+                tap::communication::serial::Remote::SwitchState::MID)
             {
                 flywheel1DesiredRPM = k_flywheelSpeed;
                 flywheel2DesiredRPM = k_flywheelSpeed;
             }
             else if (
                 remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
-                tap::communication::serial::Remote::SwitchState::DOWN)
+                tap::communication::serial::Remote::SwitchState::MID)
+                
             {
             }
             else if ((remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
-                      tap::communication::serial::Remote::SwitchState::MID))
+                      tap::communication::serial::Remote::SwitchState::DOWN))
             {
                 flywheel1DesiredRPM = 0.0f;
                 flywheel2DesiredRPM = 0.0f;
