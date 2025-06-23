@@ -61,15 +61,15 @@ static void initializeIo(src::Drivers *drivers);
 // very frequently. Use PeriodicMilliTimers if you don't want something to be
 // called as frequently.
 static void updateIo(src::Drivers *drivers);
-void updateFlywheels(float deltaTime);
+void updateFlywheels(float deltaTime, tap::motor::DjiMotor &flywheel1, tap::motor::DjiMotor &flywheel2);
 
-tap::algorithms::SmoothPidConfig SmoothpidConfig1(55, 1, 5, 0, 16000, 1, 0, 1, 0);
+tap::algorithms::SmoothPidConfig SmoothpidConfig1(28, 0, 4.5, 0, 19000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig2(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig3(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig4(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig5(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig6(10, 1, 1, 0, 8000, 1, 0, 1, 0);
-tap::algorithms::SmoothPidConfig SmoothpidConfig7(35, 1, 4, 0, 16000, 1, 0, 1, 0);
+tap::algorithms::SmoothPidConfig SmoothpidConfig7(10, 0, 1.2, 0, 10000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig flywheel1PidConfig{20, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};//PID tuning for flywheels
 tap::algorithms::SmoothPidConfig flywheel2PidConfig{20, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};//PID tuning for flywheels
 tap::algorithms::SmoothPid pidController1(SmoothpidConfig1);
@@ -82,15 +82,15 @@ tap::algorithms::SmoothPid pidController7(SmoothpidConfig7);
 tap::algorithms::SmoothPid flywheel1Pid(flywheel1PidConfig);
 tap::algorithms::SmoothPid flywheel2Pid(flywheel2PidConfig);
 
-tap::motor::DjiMotor motor(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS2, false, "cool motor");
-tap::motor::DjiMotor motor2(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS2, true, "cool motor");
-tap::motor::DjiMotor motor3(src::DoNotUse_getDrivers(), MOTOR_ID3, CAN_BUS2, false, "cool motor");
-tap::motor::DjiMotor motor4(src::DoNotUse_getDrivers(), MOTOR_ID4, CAN_BUS2, true, "cool motor");
-tap::motor::DjiMotor motor5(src::DoNotUse_getDrivers(), MOTOR_ID5, CAN_BUS, true, "cool motor");
-tap::motor::DjiMotor motor6(src::DoNotUse_getDrivers(), MOTOR_ID6, CAN_BUS, true, "cool motor");
-tap::motor::DjiMotor motor7(src::DoNotUse_getDrivers(), MOTOR_ID7, CAN_BUS, true, "cool motor");
-tap::motor::DjiMotor flywheel1(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, false, "cool motor");
-tap::motor::DjiMotor flywheel2(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, true, "cool motor");
+// tap::motor::DjiMotor motor(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS2, false, "cool motor");
+// tap::motor::DjiMotor motor2(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS2, true, "cool motor");
+// tap::motor::DjiMotor motor3(src::DoNotUse_getDrivers(), MOTOR_ID3, CAN_BUS2, false, "cool motor");
+// tap::motor::DjiMotor motor4(src::DoNotUse_getDrivers(), MOTOR_ID4, CAN_BUS2, true, "cool motor");
+// tap::motor::DjiMotor motor5(src::DoNotUse_getDrivers(), MOTOR_ID5, CAN_BUS, true, "cool motor");
+// tap::motor::DjiMotor motor6(src::DoNotUse_getDrivers(), MOTOR_ID6, CAN_BUS, true, "cool motor");
+// tap::motor::DjiMotor motor7(src::DoNotUse_getDrivers(), MOTOR_ID7, CAN_BUS, true, "cool motor");
+// tap::motor::DjiMotor flywheel1(src::DoNotUse_getDrivers(), MOTOR_ID2, CAN_BUS, false, "cool motor");
+// tap::motor::DjiMotor flywheel2(src::DoNotUse_getDrivers(), MOTOR_ID, CAN_BUS, true, "cool motor");
 
 float flywheel1DesiredRPM{0.0f};
 float flywheel2DesiredRPM{0.0f};
@@ -98,8 +98,81 @@ float flywheel2DesiredRPM{0.0f};
 float heading, move, MotorA, MotorB, MotorC, MotorD, yaw, HPower;
 
 float FWDJoy, StrafeJoy, TXJoy, TYJoy, Tturn, k;
-bool done = false, f = true, d = true;
+bool done = false, f = true, d = true, beybladeMode = false, leftClick = false, rightClick = false, pitchInit = false;
+int16_t mouse_dx = 0, mouse_dy = 0;
 float DESIRED_RPM, DESIRED_RPM2, DESIRED_RPM3, DESIRED_RPM4,gimbalYawTargetPos, gimbalTargetPos;
+
+void joystick_control(tap::communication::serial::Remote &remote) {
+    FWDJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL);
+    StrafeJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
+    TXJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
+    TYJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
+    Tturn = remote.getChannel(tap::communication::serial::Remote::Channel::WHEEL);
+}
+
+template<typename T>
+T clamp(T value, T min_val, T max_val) {
+    if (value < min_val) return min_val;
+    if (value > max_val) return max_val;
+    return value;
+}
+
+void keyboard_control(tap::communication::serial::Remote &remote, tap::motor::DjiMotor*pitchMotor) {
+    FWDJoy = (remote.keyPressed(tap::communication::serial::Remote::Key::W) ? +0.5f : 0.0f) - (remote.keyPressed(tap::communication::serial::Remote::Key::S) ? +0.5f : 0.0f);
+    StrafeJoy = (remote.keyPressed(tap::communication::serial::Remote::Key::E) ? +0.5f : 0.0f)
+                    - (remote.keyPressed(tap::communication::serial::Remote::Key::Q) ? +0.5f : 0.0f);
+    TXJoy = (remote.keyPressed(tap::communication::serial::Remote::Key::D) ? +0.5f : 0.0f)
+                    - (remote.keyPressed(tap::communication::serial::Remote::Key::A) ? +0.5f : 0.0f);
+    // Tturn = (remote.keyPressed(tap::communication::serial::Remote::Key::Q) ? -1.0f : 0.0f)
+    //             + (remote.keyPressed(tap::communication::serial::Remote::Key::E) ? +1.0f : 0.0f);
+    constexpr float MOUSE_SENS_YAW = 2.0f;   // Higher = faster
+    constexpr float DT = 1.0f / 60.0f;
+
+    float yawInput = static_cast<float>(remote.getMouseX()) * MOUSE_SENS_YAW * DT;
+    Tturn = -clamp(yawInput, -1.0f, 1.0f);
+    
+    //Gimbal Pitch Keyboard
+   // Declare outside
+       
+
+        // Function
+       
+            if (!pitchInit) {
+                gimbalTargetPos = pitchMotor->getEncoderUnwrapped();  // Use -> notation
+                pitchInit = true;
+            }
+
+            constexpr float MOUSE_SENS_PITCH = 20.0f;
+            constexpr float DT2 = 1.0f / 60.0f;
+
+            float pitchInput = static_cast<float>(remote.getMouseY()) * MOUSE_SENS_PITCH * DT2;
+            gimbalTargetPos += pitchInput;
+            gimbalTargetPos = std::clamp(gimbalTargetPos, -1000.0f, 5000.0f);
+        
+
+
+
+    beybladeMode = remote.keyPressed(tap::communication::serial::Remote::Key::SHIFT) ||
+                remote.keyPressed(tap::communication::serial::Remote::Key::SHIFT);
+    // bool leftClick = mouse.isButtonDown(tap::input::MouseButton::LEFT);
+    leftClick = remote.getMouseL();
+    rightClick = remote.getMouseR();
+    // float mouse_dx = mouse.getDeltaX();
+    mouse_dx = remote.getMouseX();
+    mouse_dy = remote.getMouseY();
+
+    //Agitator Keyboard Control
+    if (remote.getMouseL()) {
+    k = -6000;  // Left click → counterclockwise
+    } else if (remote.getMouseR()) {
+        k = 6000;   // Right click → clockwise
+    } else {
+        k = 0;      // No click → stop
+    }
+}
+
+
+
 
 int main()
 {
@@ -117,6 +190,16 @@ int main()
     tap::communication::serial::Remote remote(drivers);
 
     Board::initialize();
+
+    tap::motor::DjiMotor motor(drivers, MOTOR_ID, CAN_BUS2, false, "cool motor");
+    tap::motor::DjiMotor motor2(drivers, MOTOR_ID2, CAN_BUS2, true, "cool motor");
+    tap::motor::DjiMotor motor3(drivers, MOTOR_ID3, CAN_BUS2, false, "cool motor");
+    tap::motor::DjiMotor motor4(drivers, MOTOR_ID4, CAN_BUS2, true, "cool motor");
+    tap::motor::DjiMotor motor5(drivers, MOTOR_ID5, CAN_BUS, true, "cool motor");
+    tap::motor::DjiMotor motor6(drivers, MOTOR_ID6, CAN_BUS, true, "cool motor");
+    tap::motor::DjiMotor motor7(drivers, MOTOR_ID7, CAN_BUS, true, "cool motor");
+    tap::motor::DjiMotor flywheel1(drivers, MOTOR_ID2, CAN_BUS, false, "cool motor");
+    tap::motor::DjiMotor flywheel2(drivers, MOTOR_ID, CAN_BUS, true, "cool motor");
 
     motor.initialize();
     motor2.initialize();
@@ -144,8 +227,11 @@ int main()
     tap::communication::TCPServer::MainServer()->getConnection();
 #endif
 
-    while (1)
+        while (1)
     {
+
+        
+
         remote.read();
         PROFILE(drivers->profiler, updateIo, (drivers));
         drivers->mpu6500.read();
@@ -164,11 +250,15 @@ int main()
             PROFILE(drivers->profiler, drivers->djiMotorTxHandler.encodeAndSendCanData, ());
             PROFILE(drivers->profiler, drivers->terminalSerial.update, ());
 
-            FWDJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL);
-            StrafeJoy = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
-            TXJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
-            TYJoy = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
-            Tturn = remote.getChannel(tap::communication::serial::Remote::Channel::WHEEL);
+            if (remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
+                tap::communication::serial::Remote::SwitchState::MID) {
+                joystick_control(remote);
+            }
+
+            else if (remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
+                tap::communication::serial::Remote::SwitchState::DOWN) {
+                keyboard_control(remote, &motor7);
+            }
             
             // === Beyblade Mode: Spin chassis while holding gimbal ===
             static float yawHoldTarget = 0.0f;
@@ -178,7 +268,7 @@ int main()
 
             bool beybladeMode = (
                 remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
-                tap::communication::serial::Remote::SwitchState::DOWN);
+                tap::communication::serial::Remote::SwitchState::UP) || remote.keyPressed(tap::communication::serial::Remote::Key::SHIFT);
                 
             if (beybladeMode)
             {
@@ -191,6 +281,28 @@ int main()
 
                 // Manual control logic during beyblade
                 motor5.setDesiredOutput(14800 + (Tturn * 4000));
+                
+                float rotation = 1.0f;  // full spin commanded in beyblade mode
+
+                float A = FWDJoy + StrafeJoy + rotation;
+                float B = FWDJoy - StrafeJoy - rotation;
+                float C = -FWDJoy - StrafeJoy + rotation;
+                float D = -FWDJoy + StrafeJoy - rotation;
+
+                constexpr float DRIVE_SCALE = 4000.0f;
+
+                pidController3.runControllerDerivateError(A * DRIVE_SCALE - motor.getShaftRPM(), 1);
+                pidController4.runControllerDerivateError(B * DRIVE_SCALE - motor2.getShaftRPM(), 1);
+                pidController5.runControllerDerivateError(C * DRIVE_SCALE - motor3.getShaftRPM(), 1);
+                pidController6.runControllerDerivateError(D * DRIVE_SCALE - motor4.getShaftRPM(), 1);
+
+                motor.setDesiredOutput((int32_t)pidController3.getOutput());
+                motor2.setDesiredOutput((int32_t)pidController4.getOutput());
+                motor3.setDesiredOutput((int32_t)pidController5.getOutput());
+                motor4.setDesiredOutput((int32_t)pidController6.getOutput());
+
+
+
             }
             else
             {
@@ -339,24 +451,24 @@ int main()
             motor4.setDesiredOutput((static_cast<int32_t>(pidController6.getOutput())));
             //motor5.setDesiredOutput((Tturn) * (30000));//Gimble Yaw speed controll/wheel toggle
 
-            if (abs(TYJoy) > 0)
-            {
-                gimbalTargetPos = gimbalTargetPos + TYJoy * -6;//value to change for Gimbal Pitch
-            }
+            // if (abs(TYJoy) > 0)
+            // {
+            //     gimbalTargetPos = gimbalTargetPos + TYJoy * -6;//value to change for Gimbal Pitch
+            // }
 
-            if (motor.isMotorOnline() && d)
-            {
-                //motor7.resetEncoderValue();
-                gimbalTargetPos = motor7.getEncoderUnwrapped();
-                d = false;
-            }
-            else if (d == false)
-            {
+            // if (motor.isMotorOnline() && d)
+            // {
+            //     //motor7.resetEncoderValue();
+            //     gimbalTargetPos = motor7.getEncoderUnwrapped();
+            //     d = false;
+            // }
+            // else if (d == false)
+            // {
                 pidController1.runControllerDerivateError(
                     (gimbalTargetPos) - (motor7.getEncoderUnwrapped()),
                     1);
                 motor7.setDesiredOutput(static_cast<int32_t>(pidController1.getOutput()));
-            }
+            // }
 
             /*
             pidController2.runControllerDerivateError(DESIRED_RPM - motor6.getShaftRPM(), 1);
@@ -364,26 +476,26 @@ int main()
             */
             pidController2.runControllerDerivateError((k) - (motor6.getShaftRPM()), 1);
             motor6.setDesiredOutput(static_cast<int32_t>(pidController2.getOutput()));
-            if (remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
+            if (remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
                 tap::communication::serial::Remote::SwitchState::UP)
             {
-                k = 40000;
+                k = -6000;
             }
             
             else if (
                 remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
-                tap::communication::serial::Remote::SwitchState::UP)
-            {
-                k = -3200;
-            }
-            else if (
-                remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
-                    tap::communication::serial::Remote::SwitchState::MID ||
-                remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
-                    tap::communication::serial::Remote::SwitchState::UNKNOWN)
+                tap::communication::serial::Remote::SwitchState::DOWN)
             {
                 k = 0;
             }
+            // else if (
+            //     remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
+            //         tap::communication::serial::Remote::SwitchState::MID ||
+            //     remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
+            //         tap::communication::serial::Remote::SwitchState::UNKNOWN)
+            // {
+            //     k = 0;
+            // }
 
             if (remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
                 tap::communication::serial::Remote::SwitchState::MID)
@@ -397,8 +509,8 @@ int main()
                 
             {
             }
-            else if ((remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
-                      tap::communication::serial::Remote::SwitchState::DOWN))
+            else if ((remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
+                      tap::communication::serial::Remote::SwitchState::MID))
             {
                 flywheel1DesiredRPM = 0.0f;
                 flywheel2DesiredRPM = 0.0f;
@@ -411,14 +523,14 @@ int main()
 
         modm::chrono::micro_clock::time_point now{theClock.now()};
         modm::PreciseClock::duration duration{now - epoch};
-        updateFlywheels(duration.count());
+        updateFlywheels(duration.count(), flywheel1, flywheel2);
 
         modm::delay_us(100);
     }
     return 0;
 }
 
-void updateFlywheels(float deltaTime)
+void updateFlywheels(float deltaTime, tap::motor::DjiMotor &flywheel1, tap::motor::DjiMotor &flywheel2)
 {
     const double flywheel1Error{flywheel1DesiredRPM - flywheel1.getShaftRPM()};
     const double flywheel1derivativeError{flywheel1Pid.runControllerDerivateError(flywheel1Error, deltaTime)};
