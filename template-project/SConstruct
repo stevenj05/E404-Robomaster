@@ -70,6 +70,7 @@ env.AppendUnique(CPPPATH=[
     abspath(r"test"),
 ])
 
+env.Append(LINKFLAGS=["-Wl,--gc-sections"])
 
 sources = []
 # Building all libraries (read from sconscript files located in provided dirs)

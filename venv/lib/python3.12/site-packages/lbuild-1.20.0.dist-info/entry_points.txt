@@ -1,0 +1,3 @@
+[console_scripts]
+lbuild = lbuild.main:main
+
