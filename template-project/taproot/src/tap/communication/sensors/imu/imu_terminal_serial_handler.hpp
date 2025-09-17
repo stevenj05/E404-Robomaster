@@ -39,7 +39,7 @@ class Drivers;
 namespace tap::communication::sensors::imu
 {
 /**
- * Interface for reading GYRO data. Connects to the terminal serial driver and allows
+ * Interface for reading IMU data. Connects to the terminal serial driver and allows
  * the user to query gyro, accel, angle, and temperature data. Single query and streaming
  * modes supported.
  */
@@ -63,7 +63,7 @@ public:
     void terminalSerialStreamCallback(modm::IOStream& outputStream) override;
 
 private:
-    /** Usage without the name since this is dependent on the GYRO. */
+    /** Usage without the name since this is dependent on the IMU. */
     static constexpr char USAGE[] =
         " [-h] [angle] [gyro] [accel] [temp]\n"
         "  Where:\n"

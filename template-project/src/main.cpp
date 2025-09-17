@@ -48,7 +48,7 @@ tap::arch::PeriodicMilliTimer updateImuTimeout(2);
 
 //motor1-4:Drive train motors | motor 6: 2006 Agitator | motor 5&7: Yaw and Pitch 6020
 
-constexpr float k_flywheelSpeed{7200};
+constexpr float k_flywheelSpeed{6000};
 
 modm::PreciseClock theClock{};
 modm::chrono::micro_clock::time_point epoch;
@@ -63,13 +63,13 @@ static void initializeIo(src::Drivers *drivers);
 static void updateIo(src::Drivers *drivers);
 void updateFlywheels(float deltaTime, tap::motor::DjiMotor &flywheel1, tap::motor::DjiMotor &flywheel2);
 
-tap::algorithms::SmoothPidConfig SmoothpidConfig1(28, 0, 4.5, 0, 19000, 1, 0, 1, 0);
+tap::algorithms::SmoothPidConfig SmoothpidConfig1(100, 0, 0.5, 0, 15000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig2(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig3(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig4(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig5(10, 1, 1, 0, 8000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig SmoothpidConfig6(10, 1, 1, 0, 8000, 1, 0, 1, 0);
-tap::algorithms::SmoothPidConfig SmoothpidConfig7(10, 0, 1.2, 0, 10000, 1, 0, 1, 0);
+tap::algorithms::SmoothPidConfig SmoothpidConfig7(20, 0, 1, 0, 10000, 1, 0, 1, 0);
 tap::algorithms::SmoothPidConfig flywheel1PidConfig{20, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};//PID tuning for flywheels
 tap::algorithms::SmoothPidConfig flywheel2PidConfig{20, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};//PID tuning for flywheels
 tap::algorithms::SmoothPid pidController1(SmoothpidConfig1);
@@ -147,7 +147,7 @@ void keyboard_control(tap::communication::serial::Remote &remote, tap::motor::Dj
 
             float pitchInput = static_cast<float>(remote.getMouseY()) * MOUSE_SENS_PITCH * DT2;
             gimbalTargetPos += pitchInput;
-            gimbalTargetPos = std::clamp(gimbalTargetPos, -1000.0f, 5000.0f);
+            gimbalTargetPos = std::clamp(gimbalTargetPos, -700.0f, 400.0f);//Roughly 10 Degrees up 30 Degrees Down
         
 
 
@@ -253,6 +253,17 @@ int main()
             if (remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
                 tap::communication::serial::Remote::SwitchState::MID) {
                 joystick_control(remote);
+            
+
+                // constexpr float PITCH_SENSITIVITY = 6.0f;  // Tune as needed
+
+                // if (!pitchInit) {
+                //     gimbalTargetPos = motor7.getEncoderUnwrapped();
+                //     pitchInit = true;
+                // }
+
+                // gimbalTargetPos += -TYJoy * PITCH_SENSITIVITY;
+                // gimbalTargetPos = std::clamp(gimbalTargetPos, -700.0f, 400.0f);  // Adjust as needed
             }
 
             else if (remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
@@ -277,11 +288,27 @@ int main()
                     lastBeybladeState = true;
                     waitingForStabilize = false;
                     stabilizeCounter = 0;
+
+                    //gimbalYawTargetPos = drivers->mpu6500.getYaw() + motor5.getEncoderUnwrapped(); //Hold PID going into Beyblade 6020
                 }
 
+                //  // Allow manual gimbal input during beyblade
+                //     const float scalingFactor = 40.0f;
+                //     if (fabs(Tturn) > 0.01f)
+                //     {
+                //         gimbalYawTargetPos += Tturn * scalingFactor;
+                //     }
+
+                //     // Run PID to maintain gimbal position while spinning
+                //     pidController7.runControllerDerivateError(
+                //         gimbalYawTargetPos - drivers->mpu6500.getYaw(),
+                //         1
+                //     );
+                //     motor5.setDesiredOutput(static_cast<int32_t>(pidController7.getOutput()));
+
                 // Manual control logic during beyblade
-                motor5.setDesiredOutput(14800 + (Tturn * 4000));
-                
+                motor5.setDesiredOutput(13300 + (Tturn * 7000));//Previously 4k changed to 7k to help better movement when spinning
+                //Need to change the 14800 hard code value over to read rpm of chassis
                 float rotation = 1.0f;  // full spin commanded in beyblade mode
 
                 float A = FWDJoy + StrafeJoy + rotation;
@@ -433,7 +460,7 @@ int main()
     */
             float rotation = beybladeMode ? 1.0f : 0.0f;
             pidController3.runControllerDerivateError(
-                ((FWDJoy + StrafeJoy + TXJoy + rotation) * 4000) - (motor.getShaftRPM()),
+                ((FWDJoy + StrafeJoy + TXJoy + rotation) * 4000) - (motor.getShaftRPM()),//possible change little faster 4500
                 1);
             pidController4.runControllerDerivateError(
                 ((FWDJoy - StrafeJoy - TXJoy - rotation) * 4000) - (motor2.getShaftRPM()),
@@ -479,7 +506,7 @@ int main()
             if (remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
                 tap::communication::serial::Remote::SwitchState::UP)
             {
-                k = -6000;
+                k = -4000;
             }
             
             else if (
@@ -503,11 +530,11 @@ int main()
                 flywheel1DesiredRPM = k_flywheelSpeed;
                 flywheel2DesiredRPM = k_flywheelSpeed;
             }
-            else if (
-                remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
-                tap::communication::serial::Remote::SwitchState::MID)
-                
+            else if (remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
+                tap::communication::serial::Remote::SwitchState::UP)  
             {
+                flywheel1DesiredRPM = k_flywheelSpeed;
+                flywheel2DesiredRPM = k_flywheelSpeed;
             }
             else if ((remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
                       tap::communication::serial::Remote::SwitchState::MID))

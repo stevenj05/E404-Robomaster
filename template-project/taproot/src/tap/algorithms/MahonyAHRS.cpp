@@ -79,7 +79,7 @@ void Mahony::update(
     float recipNorm;
     float qa, qb, qc;
 
-    // Use GYRO algorithm if magnetometer measurement invalid
+    // Use IMU algorithm if magnetometer measurement invalid
     // (avoids NaN in magnetometer normalisation)
     if ((mx == 0.0f) && (my == 0.0f) && (mz == 0.0f))
     {
@@ -193,7 +193,7 @@ void Mahony::update(
 }
 
 //-------------------------------------------------------------------------------------------
-// GYRO algorithm update
+// IMU algorithm update
 
 void Mahony::updateIMU(float gx, float gy, float gz, float ax, float ay, float az)
 {
