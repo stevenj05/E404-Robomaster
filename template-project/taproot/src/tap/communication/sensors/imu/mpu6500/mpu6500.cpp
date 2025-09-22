@@ -177,17 +177,35 @@ void Mpu6500::periodicIMUUpdate()
 bool Mpu6500::read()
 {
 #ifndef PLATFORM_HOSTED
+    // hoist all locals so PT macros don't jump across initializations
+    uint8_t tx = 0;
+    uint8_t rx = 0;
+
+    // Create a valid rfResult object (ResumableResult<void> has no default ctor,
+    // but it has a constructor taking a uint_fast8_t). Initialize with 0.
+    using RfType = decltype(Board::ImuSpiMaster::transfer(&tx, &rx, 1));
+    RfType rfResult{0};
+
     PT_BEGIN();
     while (true)
     {
         PT_WAIT_UNTIL(readRegistersTimeout.execute());
 
         mpuNssLow();
+
+        // set up transfer parameters
         tx = MPU6500_ACCEL_XOUT_H | MPU6500_READ_BIT;
         rx = 0;
         txBuff[0] = tx;
-        PT_CALL(Board::ImuSpiMaster::transfer(&tx, &rx, 1));
-        PT_CALL(Board::ImuSpiMaster::transfer(txBuff, rxBuff, ACC_GYRO_TEMPERATURE_BUFF_RX_SIZE));
+
+        // Perform non-blocking transfers by assigning into the predeclared rfResult,
+        // then calling the protothread macro which expects rfResult to be available.
+        rfResult = Board::ImuSpiMaster::transfer(&tx, &rx, 1);
+        PT_CALL(rfResult);
+
+        rfResult = Board::ImuSpiMaster::transfer(txBuff, rxBuff, ACC_GYRO_TEMPERATURE_BUFF_RX_SIZE);
+        PT_CALL(rfResult);
+
         mpuNssHigh();
 
         (*processRawMpu6500DataFn)(rxBuff, raw.accel, raw.gyro);
@@ -201,6 +219,7 @@ bool Mpu6500::read()
     return false;
 #endif
 }
+
 
 float Mpu6500::getTiltAngle()
 {
