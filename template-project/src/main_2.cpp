@@ -92,7 +92,7 @@
 //     remote.initialize();
 
 //     motor5.resetEncoderValue();
-//     drivers->mpu6500.init(500.f, 0.1f, 0.0f);
+//     drivers->bmi088.init(500.f, 0.1f, 0.0f);
 //     initializeIo(drivers);
 //     drivers->pwm.setTimerFrequency(tap::gpio::Pwm::Timer::TIMER8, PWM_FREQUENCY);
 
@@ -145,15 +145,15 @@
 
 //         remote.read();
 //         PROFILE(drivers->profiler, updateIo, (drivers));
-//         drivers->mpu6500.read();
+//         drivers->bmi088.read();
 
 //         if (updateImuTimeout.execute()) {
-//             drivers->mpu6500.periodicIMUUpdate();
+//             drivers->bmi088.periodicIMUUpdate();
 //         }
 
 //         if (sendMotorTimeout.execute())
 //         {
-//             drivers->mpu6500.periodicIMUUpdate();
+//             drivers->bmi088.periodicIMUUpdate();
 //             drivers->commandScheduler.run();
 //             drivers->djiMotorTxHandler.encodeAndSendCanData();
 //             drivers->terminalSerial.update();
@@ -232,7 +232,7 @@
 // {
 //     d->analog.init(); d->pwm.init(); d->digital.init(); d->leds.init();
 //     d->can.initialize(); d->errorController.init(); d->remote.initialize();
-//     d->mpu6500.init(MAIN_LOOP_FREQUENCY, 0.1, 0);
+//     d->bmi088.init(MAIN_LOOP_FREQUENCY, 0.1, 0);
 //     d->refSerial.initialize(); d->terminalSerial.initialize();
 //     d->schedulerTerminalHandler.init();
 //     d->djiMotorTerminalSerialHandler.init();
@@ -246,5 +246,5 @@
 //     d->canRxHandler.pollCanData();
 //     d->refSerial.updateSerial();
 //     d->remote.read();
-//     d->mpu6500.read();
+//     d->bmi088.read();
 // }
