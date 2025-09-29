@@ -1,10 +1,13 @@
+// ========== main.cpp ==========
+// Standard includes
 #ifdef PLATFORM_HOSTED
-    // Hosted environment (simulator) includes
-    #include "tap/communication/tcp-server/tcp_server.hpp"
-    #include "tap/motor/motorsim/dji_motor_sim_handler.hpp"
+#include "tap/communication/tcp-server/tcp_server.hpp"
+#include "tap/motor/motorsim/dji_motor_sim_handler.hpp"
 #endif
 
-#include "Constants.hpp"
+#include "referenceHead.hpp"
+
+// Include referenceHead FIRST to establish base taproot environment
 #include "subsystems/Drivetrain.hpp"
 #include "subsystems/Flywheels.hpp"
 #include "subsystems/Gimbal.hpp"
@@ -50,9 +53,9 @@ int main() {
 #endif
 
     // Subsystems
-    Drivetrain driveTrain(motor, motor2, motor3, motor4, remote);
-    Gimbal gimbal(motor7, remote);
-    Flywheels flywheels(flywheel1, flywheel2, remote);
+    Drivetrain driveTrain(remote);
+    Gimbal gimbal(remote);
+    Flywheels flywheels(remote);
 
     // Initialize motors + PID
     driveTrain.initialize();

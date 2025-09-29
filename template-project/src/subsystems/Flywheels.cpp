@@ -1,12 +1,7 @@
 #include "Flywheels.hpp"
-#include "../Constants.hpp"
 
-Flywheels::Flywheels(tap::motor::DjiMotor& f1,
-                     tap::motor::DjiMotor& f2,
-                     tap::communication::serial::Remote& remoteIn)
-: flywheel1(f1), flywheel2(f2),
-  pid1(Constants::flywheel1Pid), pid2(Constants::flywheel2Pid),
-  remote(remoteIn) {}
+Flywheels::Flywheels(tap::communication::serial::Remote& remoteIn)
+:  remote(remoteIn) {}
 
 void Flywheels::initialize() {
     flywheel1.initialize();

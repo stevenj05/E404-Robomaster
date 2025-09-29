@@ -1,9 +1,7 @@
 #include "Gimbal.hpp"
-#include "../Constants.hpp"
 
-Gimbal::Gimbal(tap::motor::DjiMotor& pitchMotor,
-               tap::communication::serial::Remote& remoteIn)
-: motorPitch(pitchMotor), pidPitch(Constants::pidController5), remote(remoteIn) {}
+Gimbal::Gimbal(tap::communication::serial::Remote& remoteIn)
+: remote(remoteIn) {}
 
 void Gimbal::initialize() {
     motorPitch.initialize();

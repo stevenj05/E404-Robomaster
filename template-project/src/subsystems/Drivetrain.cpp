@@ -1,14 +1,7 @@
 #include "Drivetrain.hpp"
-#include "../Constants.hpp"
 
-Drivetrain::Drivetrain(tap::motor::DjiMotor& fl,
-                       tap::motor::DjiMotor& fr,
-                       tap::motor::DjiMotor& bl,
-                       tap::motor::DjiMotor& br,
-                       tap::communication::serial::Remote& remoteIn)
-: motorFL(fl), motorFR(fr), motorBL(bl), motorBR(br),
-  pidFL(Constants::pidController1),pidFR(Constants::pidController2), pidBL(Constants::pidController3), pidBR(Constants::pidController4),
-  remote(remoteIn) {}
+Drivetrain::Drivetrain(tap::communication::serial::Remote& remoteIn)
+: remote(remoteIn) {}
 
 void Drivetrain::initialize() {
     motorFL.initialize();
