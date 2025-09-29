@@ -84,17 +84,17 @@
  * whether it completed successfully or not.
  * \hideinitializer
  */
-#define PT_CALL(...) \
-	({ \
-		this->ptState = __LINE__; \
-		modm_fallthrough; \
-		case __LINE__: \
-			auto rfResult = (__VA_ARGS__); \
-			if (rfResult.getState() > modm::rf::NestingError) { \
-				return true; \
-			} \
-			rfResult.getResult(); \
-	})
+#define PT_CALL(expr) \
+  do { \
+    this->ptState = __LINE__; \
+    modm_fallthrough; \
+    case __LINE__: \
+      rfResult = (expr); \
+      if (rfResult.getState() > modm::rf::NestingError) { \
+        return true; \
+      } \
+      rfResult.getResult(); \
+  } while (0)
 
 /**
  * Reset protothread to start from the beginning
