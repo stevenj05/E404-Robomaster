@@ -14,9 +14,10 @@ void Gimbal::update() {
     if (std::abs(pitchInput) > 0) {
         targetPos += pitchInput * 10; // sensitivity multiplier
     }
+
+    pidPitch.runControllerDerivateError(targetPos - motorPitch.getEncoderUnwrapped(), 1);
 }
 
-void Gimbal::tick() {
-    pidPitch.runControllerDerivateError(targetPos - motorPitch.getEncoderUnwrapped(), 1);
-    motorPitch.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput()));
+void Gimbal::tick(float scale) {
+    motorPitch.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
 }

@@ -10,11 +10,11 @@ public:
 
     void initialize();
     void update();
-    void tick();
+    void tick(float scale = 1.0f);
 
 private:
-    tap::motor::DjiMotor motorPitch{drivers, Constants::M_ID6, Constants::CAN_BUS1, true, "motor6"};
-    tap::motor::DjiMotor MotorYaw{drivers, Constants::M_ID7, Constants::CAN_BUS1, true, "motor7"};
+    tap::motor::DjiMotor motorPitch{drivers, Constants::M_ID6, Constants::CAN_BUS1, true, "motorPitch"};
+    tap::motor::DjiMotor MotorYaw{drivers, Constants::M_ID7, Constants::CAN_BUS1, true, "motorYaw"};
 
     tap::algorithms::SmoothPid pidPitch{Constants::pidConfig5};
     tap::algorithms::SmoothPid pidYaw{Constants::pidConfig6};

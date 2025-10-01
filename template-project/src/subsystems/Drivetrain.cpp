@@ -31,16 +31,16 @@ void Drivetrain::update() {
     pidBR.runControllerDerivateError(((-fwdInput + strafeInput - turnInput) * 4000) - motorBR.getShaftRPM(), 1);
 }
 
-void Drivetrain::tick() {
+void Drivetrain::tick(float scale) {
     if (beybladeMode) {
-        motorFL.setDesiredOutput(12000);
-        motorFR.setDesiredOutput(-12000);
-        motorBL.setDesiredOutput(12000);
-        motorBR.setDesiredOutput(-12000);
+        motorFL.setDesiredOutput(12000*scale);
+        motorFR.setDesiredOutput(-12000*scale);
+        motorBL.setDesiredOutput(12000*scale);
+        motorBR.setDesiredOutput(-12000*scale);
     } else {
-        motorFL.setDesiredOutput(static_cast<int32_t>(pidFL.getOutput()));
-        motorFR.setDesiredOutput(static_cast<int32_t>(pidFR.getOutput()));
-        motorBL.setDesiredOutput(static_cast<int32_t>(pidBL.getOutput()));
-        motorBR.setDesiredOutput(static_cast<int32_t>(pidBR.getOutput()));
+        motorFL.setDesiredOutput(static_cast<int32_t>(pidFL.getOutput()*scale));
+        motorFR.setDesiredOutput(static_cast<int32_t>(pidFR.getOutput()*scale));
+        motorBL.setDesiredOutput(static_cast<int32_t>(pidBL.getOutput()*scale));
+        motorBR.setDesiredOutput(static_cast<int32_t>(pidBR.getOutput()*scale));
     }
 }

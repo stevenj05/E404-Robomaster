@@ -12,7 +12,7 @@ public:
 
     void initialize();
     void update();
-    void tick();
+    void tick(float scale = 1.0f);
 
 private:
     tap::motor::DjiMotor flywheel1{drivers, Constants::M_ID2, Constants::CAN_BUS1, false, "flywheel1"};

@@ -18,12 +18,13 @@ void Flywheels::update() {
     } else if (state == tap::communication::serial::Remote::SwitchState::DOWN) {
         desiredRPM = -4000; // reverse
     }
-}
 
-void Flywheels::tick() {
+
     pid1.runControllerDerivateError(desiredRPM - flywheel1.getShaftRPM(), 1);
     pid2.runControllerDerivateError(desiredRPM - flywheel2.getShaftRPM(), 1);
+}
 
-    flywheel1.setDesiredOutput(static_cast<int32_t>(pid1.getOutput()));
-    flywheel2.setDesiredOutput(static_cast<int32_t>(pid2.getOutput()));
+void Flywheels::tick(float scale) {
+    flywheel1.setDesiredOutput(static_cast<int32_t>(pid1.getOutput()*scale));
+    flywheel2.setDesiredOutput(static_cast<int32_t>(pid2.getOutput()*scale));
 }

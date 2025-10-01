@@ -12,14 +12,14 @@ public:
 
     void initialize();
     void update();
-    void tick();
+    void tick(float scale = 1.0f);
 
 private:
     // Hardware
-    tap::motor::DjiMotor motorFL{drivers, M_ID1, CAN_BUS2, false, "motor1"};
-    tap::motor::DjiMotor motorFR{drivers, M_ID2, CAN_BUS2, true, "motor2"};
-    tap::motor::DjiMotor motorBL{drivers, M_ID3, CAN_BUS2, false, "motor3"};
-    tap::motor::DjiMotor motorBR{drivers, M_ID4, CAN_BUS2, true, "motor4"};
+    tap::motor::DjiMotor motorFL{drivers, M_ID1, CAN_BUS2, false, "motorFL"};
+    tap::motor::DjiMotor motorFR{drivers, M_ID2, CAN_BUS2, true, "motorFR"};
+    tap::motor::DjiMotor motorBL{drivers, M_ID3, CAN_BUS2, false, "motorBL"};
+    tap::motor::DjiMotor motorBR{drivers, M_ID4, CAN_BUS2, true, "motorBR"};
     // PID
     tap::algorithms::SmoothPid pidFL{pidConfig1};
     tap::algorithms::SmoothPid pidFR{pidConfig2};
