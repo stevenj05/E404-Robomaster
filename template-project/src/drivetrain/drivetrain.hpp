@@ -1,4 +1,4 @@
-#pragma once
+/*#pragma once
 #include "drivers.hpp"
 #include "tap/motor/dji_motor.hpp"
 #include "tap/algorithms/smooth_pid.hpp"
@@ -49,3 +49,4 @@ private:
 };
 
 } // namespace robot
+*/
