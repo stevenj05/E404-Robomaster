@@ -2,6 +2,7 @@
 
 template-project/build
 template-project/Pipfile.lock
+template-project/.cache
 project.xml.log
 
 .vscode/.cortex-debug.peripherals.state.json
@@ -14,4 +15,5 @@ gcov-result
 docs/_build
 docs/api
 docs/doxyoutput
+
 venv
