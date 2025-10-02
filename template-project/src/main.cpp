@@ -18,11 +18,6 @@ using namespace Constants;
 tap::arch::PeriodicMilliTimer sendMotorTimeout(1000.0f / MAIN_LOOP_FREQUENCY);
 tap::arch::PeriodicMilliTimer updateImuTimeout(2);
 
-// Clock / timing
-modm::PreciseClock theClock{};
-modm::chrono::micro_clock::time_point epoch;
-using MicrosecondDuration = modm::PreciseClock::duration;
-
 // -----------------------------------------------------------------------------
 // Function declarations
 // -----------------------------------------------------------------------------

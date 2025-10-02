@@ -17,6 +17,7 @@
 
 import os
 from os.path import join, abspath
+from sys import platform
 
 from SCons.Script import *
 

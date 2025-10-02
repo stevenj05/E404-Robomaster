@@ -37,6 +37,4 @@ namespace Constants {
         20, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};
     static constexpr tap::algorithms::SmoothPidConfig flywheelPidConfig2{
         20, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};
-
-    static src::Drivers *drivers = src::DoNotUse_getDrivers();
 }
