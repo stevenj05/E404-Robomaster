@@ -49,7 +49,7 @@
             "cwd": "${workspaceRoot}",
             "preLaunchTask": "Program - Debug",
             "executable": "./template-project/build/hardware/scons-debug/template-project.elf",
-            "device": "STM32F427II",
+            "device": "STM32F407IG",
             "configFiles": [
                 "./template-project/openocd.cfg"
             ]
