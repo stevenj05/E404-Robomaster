@@ -4,13 +4,13 @@
 #include <errno.h>
 #include <stdint.h>
 
-#define STM32F427xx
+#define STM32F407xx
 #include "stm32f4xx.h"
 
 // -------------------------
 // UART base addresses (adjust per board)
 // -------------------------
-#define DEBUG_UART   USART3   // Debug UART for printf
+#define DEBUG_UART   USART1   // Debug UART for printf
 #define REF_UART     USART6   // Referee system UART
 
 // -------------------------

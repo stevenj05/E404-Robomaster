@@ -1,5 +1,6 @@
 // ========== main.cpp ==========
 // Standard includes
+#include "Constants.hpp"
 #ifdef PLATFORM_HOSTED
 #include "tap/communication/tcp-server/tcp_server.hpp"
 #include "tap/motor/motorsim/dji_motor_sim_handler.hpp"
@@ -44,7 +45,7 @@ int main() {
     initializeIo(drivers);
 
     remote.initialize();
-    drivers->mpu6500.init(500.f, 0.1f, 0.0f);
+    drivers->bmi088.initialize(500.f, 0.1f, 0.0f);
     drivers->pwm.setTimerFrequency(tap::gpio::Pwm::Timer::TIMER8, PWM_FREQUENCY);
 
 #ifdef PLATFORM_HOSTED
@@ -67,7 +68,7 @@ int main() {
 
         // Update IMU
         if (updateImuTimeout.execute()) {
-            drivers->mpu6500.periodicIMUUpdate();
+            drivers->bmi088.periodicIMUUpdate();
         }
 
         // Update all subsystems
@@ -102,7 +103,11 @@ static void initializeIo(src::Drivers* drivers)
     drivers->can.initialize();
     drivers->errorController.init();
     drivers->remote.initialize();
-    drivers->mpu6500.init(MAIN_LOOP_FREQUENCY, 0.1, 0);
+
+    //Added initialization of bmi088 (only in TYPE-C board)
+    drivers->bmi088.initialize(MAIN_LOOP_FREQUENCY, 0.1f, 0.0f);
+    drivers->bmi088.requestRecalibration();
+
     drivers->refSerial.initialize();
     drivers->terminalSerial.initialize();
     drivers->schedulerTerminalHandler.init();
@@ -120,5 +125,5 @@ static void updateIo(src::Drivers* drivers)
     drivers->canRxHandler.pollCanData();
     drivers->refSerial.updateSerial();
     drivers->remote.read();
-    drivers->mpu6500.read();
+    //there is no read for the bmi088
 }

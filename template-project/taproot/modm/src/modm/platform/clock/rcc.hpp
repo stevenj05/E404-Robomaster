@@ -271,8 +271,6 @@ public:
 		RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_PPRE2) | uint32_t(prescaler);
 		return true;
 	}
-	static bool
-	enableOverdriveMode(uint32_t waitCycles = 2048);
 public:
 	/** Set flash latency for CPU frequency and voltage.
 	 * Does nothing if CPU frequency is too high for the available
@@ -282,7 +280,7 @@ public:
 	 * @retval	<=CPU_Frequency flash latency has been set correctly.
 	 * @retval	>CPU_Frequency requested frequency too high for voltage.
 	 */
-	template< uint32_t Core_Hz, uint16_t Core_mV = 3300>
+	template< uint32_t Core_Hz, uint16_t Core_mV>
 	static uint32_t
 	setFlashLatency();
 
