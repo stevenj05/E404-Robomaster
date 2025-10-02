@@ -15,8 +15,10 @@ namespace Constants {
     static constexpr tap::motor::MotorId M_ID2 = tap::motor::MOTOR3;
     static constexpr tap::motor::MotorId M_ID3 = tap::motor::MOTOR4;
     static constexpr tap::motor::MotorId M_ID4 = tap::motor::MOTOR1;
+
     static constexpr tap::motor::MotorId M_ID5 = tap::motor::MOTOR5;
     static constexpr tap::motor::MotorId M_ID6 = tap::motor::MOTOR6;
+    
     static constexpr tap::motor::MotorId M_ID7 = tap::motor::MOTOR8;
     static constexpr tap::motor::MotorId M_ID8 = tap::motor::MOTOR2;
     static constexpr tap::motor::MotorId M_ID9 = tap::motor::MOTOR1;
