@@ -32,7 +32,6 @@ int main() {
     std::cout << "Simulation starting..." << std::endl;
 #endif
 
-    src::Drivers* drivers = src::DoNotUse_getDrivers();
     tap::communication::serial::Remote remote(drivers);
 
     Board::initialize();
