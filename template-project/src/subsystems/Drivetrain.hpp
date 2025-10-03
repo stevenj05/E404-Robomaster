@@ -15,11 +15,16 @@ public:
     void tick(float scale = 1.0f);
 
 private:
+    // Helper to determine if motors are behaving correctly
+    bool motorsHealthy();
+    float safetyScale{1.0f};
+
     // Hardware
     tap::motor::DjiMotor motorFL{drivers, M_ID1, CAN_BUS2, false, "motorFL"};
     tap::motor::DjiMotor motorFR{drivers, M_ID2, CAN_BUS2, true, "motorFR"};
     tap::motor::DjiMotor motorBL{drivers, M_ID3, CAN_BUS2, false, "motorBL"};
     tap::motor::DjiMotor motorBR{drivers, M_ID4, CAN_BUS2, true, "motorBR"};
+
     // PID
     tap::algorithms::SmoothPid pidFL{pidConfig1};
     tap::algorithms::SmoothPid pidFR{pidConfig2};
