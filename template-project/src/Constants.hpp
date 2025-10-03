@@ -39,4 +39,7 @@ namespace Constants {
         20, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};
 
     static src::Drivers* drivers = src::DoNotUse_getDrivers();
+
+    //PI
+    inline constexpr float pi = 3.1415926;
 }

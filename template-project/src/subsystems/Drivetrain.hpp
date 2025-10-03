@@ -3,12 +3,13 @@
 #include <tap/communication/serial/remote.hpp>
 #include "modm/processing/timer.hpp"
 #include "../Constants.hpp"
+#include <functional>
 
 using namespace Constants;
 
 class Drivetrain {
 public:
-    Drivetrain(tap::communication::serial::Remote& remote);
+    Drivetrain(tap::communication::serial::Remote& remote, double& _yaw);
 
     void initialize();
     void update();
@@ -18,6 +19,11 @@ private:
     // Helper to determine if motors are behaving correctly
     bool motorsHealthy();
     float safetyScale{1.0f};
+
+    void mecanumDrive();
+    void gimbleOrientedDrive();
+
+    std::function<void()> driveFunc;
 
     // Hardware
     tap::motor::DjiMotor motorFL{drivers, M_ID1, CAN_BUS2, false, "motorFL"};
@@ -33,6 +39,8 @@ private:
 
     // Remote
     tap::communication::serial::Remote& remote;
+    
+    double yaw;
 
     // Inputs
     int32_t fwdInput{0}, strafeInput{0}, turnInput{0};

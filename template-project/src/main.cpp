@@ -1,5 +1,6 @@
 // ========== main.cpp ==========
 // Standard includes
+#include "Constants.hpp"
 #ifdef PLATFORM_HOSTED
 #include "tap/communication/tcp-server/tcp_server.hpp"
 #include "tap/motor/motorsim/dji_motor_sim_handler.hpp"
@@ -45,9 +46,10 @@ int main() {
     tap::motor::motorsim::DjiMotorSimHandler::getInstance()->resetMotorSims();
     tap::communication::TCPServer::MainServer()->getConnection();
 #endif
+    double yaw = 0;
 
     // Subsystems
-    Drivetrain driveTrain(remote);
+    Drivetrain driveTrain(remote, yaw);
     Gimbal gimbal(remote);
     Flywheels flywheels(remote);
 
@@ -62,6 +64,7 @@ int main() {
         // Update IMU
         if (updateImuTimeout.execute()) {
             drivers->mpu6500.periodicIMUUpdate();
+            yaw = drivers->mpu6500.getYaw();
         }
 
         // Update all subsystems
@@ -87,8 +90,7 @@ int main() {
 // -----------------------------------------------------------------------------
 // I/O Initialization
 // -----------------------------------------------------------------------------
-static void initializeIo(src::Drivers* drivers)
-{
+static void initializeIo(src::Drivers* drivers) {
     drivers->analog.init();
     drivers->pwm.init();
     drivers->digital.init();
@@ -106,8 +108,7 @@ static void initializeIo(src::Drivers* drivers)
 // -----------------------------------------------------------------------------
 // I/O Update
 // -----------------------------------------------------------------------------
-static void updateIo(src::Drivers* drivers)
-{
+static void updateIo(src::Drivers* drivers) {
 #ifdef PLATFORM_HOSTED
     tap::motor::motorsim::DjiMotorSimHandler::getInstance()->updateSims();
 #endif
