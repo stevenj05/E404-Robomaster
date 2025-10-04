@@ -34,7 +34,7 @@
 namespace tap::communication::sensors::imu
 {
 /**
- * Menu that displays GYRO readings from some particular `ImuInterface`.
+ * Menu that displays IMU readings from some particular `ImuInterface`.
  */
 class ImuMenu : public modm::AbstractMenu<display::DummyAllocator<modm::IAbstractView> >
 {
@@ -44,7 +44,7 @@ public:
 
     /**
      * @param[in] stack The `ViewStack` that this menu will is being added to.
-     * @param[in] imu The ImuInterface whose GYRO information will be displayed.
+     * @param[in] imu The ImuInterface whose IMU information will be displayed.
      */
     ImuMenu(
         modm::ViewStack<display::DummyAllocator<modm::IAbstractView> > *stack,
@@ -59,7 +59,7 @@ public:
     void shortButtonPress(modm::MenuButtons::Button button) override;
 
     /**
-     * @return The name of the menu, which happens to be the name of the GYRO associated with this
+     * @return The name of the menu, which happens to be the name of the IMU associated with this
      * menu.
      */
     const char *getMenuName();

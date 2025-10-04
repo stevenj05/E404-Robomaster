@@ -86,7 +86,7 @@ Rcc::computeFlashLatency(uint32_t Core_Hz, uint16_t Core_mV)
 	return {latency, max_freq};
 }
 
-template< uint32_t Core_Hz, uint16_t Core_mV >
+template< uint32_t Core_Hz, uint16_t Core_mV = 3300 >
 uint32_t
 Rcc::setFlashLatency()
 {

@@ -80,7 +80,7 @@ bool ImuMenu::hasChanged() { return imuUpdateTimer.execute(); }
 
 void ImuMenu::shortButtonPress(modm::MenuButtons::Button button)
 {
-    // when left button pressed, remove the GYRO menu
+    // when left button pressed, remove the IMU menu
     if (button == modm::MenuButtons::Button::LEFT)
     {
         this->remove();
