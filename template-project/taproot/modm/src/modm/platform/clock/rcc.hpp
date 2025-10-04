@@ -280,7 +280,7 @@ public:
 	 * @retval	<=CPU_Frequency flash latency has been set correctly.
 	 * @retval	>CPU_Frequency requested frequency too high for voltage.
 	 */
-	template< uint32_t Core_Hz, uint16_t Core_mV>
+	template< uint32_t Core_Hz, uint16_t Core_mV = 3300>
 	static uint32_t
 	setFlashLatency();
 
