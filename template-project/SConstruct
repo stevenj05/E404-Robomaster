@@ -71,8 +71,7 @@ env.AppendUnique(CPPPATH=[
 ])
 
 env.Append(LINKFLAGS=[
-    "-Wl,--gc-sections",
-    "-specs=nosys.specs"
+    "-Wl,--gc-sections"
 ])
 
 

@@ -6,7 +6,6 @@
 #include "tap/motor/motorsim/dji_motor_sim_handler.hpp"
 #endif
 
-#include "referenceHead.hpp"
 
 // Include referenceHead FIRST to establish base taproot environment
 #include "subsystems/Drivetrain.hpp"

@@ -3,6 +3,7 @@
 template-project/build
 template-project/Pipfile.lock
 template-project/.cache
+template-project/compile_commands.json
 project.xml.log
 
 .vscode/.cortex-debug.peripherals.state.json
