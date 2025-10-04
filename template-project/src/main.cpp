@@ -18,11 +18,6 @@ using namespace Constants;
 tap::arch::PeriodicMilliTimer sendMotorTimeout(1000.0f / MAIN_LOOP_FREQUENCY);
 tap::arch::PeriodicMilliTimer updateImuTimeout(2);
 
-// Clock / timing
-modm::PreciseClock theClock{};
-modm::chrono::micro_clock::time_point epoch;
-using MicrosecondDuration = modm::PreciseClock::duration;
-
 // -----------------------------------------------------------------------------
 // Function declarations
 // -----------------------------------------------------------------------------
@@ -37,7 +32,6 @@ int main() {
     std::cout << "Simulation starting..." << std::endl;
 #endif
 
-    src::Drivers* drivers = src::DoNotUse_getDrivers();
     tap::communication::serial::Remote remote(drivers);
 
     Board::initialize();
@@ -51,9 +45,10 @@ int main() {
     tap::motor::motorsim::DjiMotorSimHandler::getInstance()->resetMotorSims();
     tap::communication::TCPServer::MainServer()->getConnection();
 #endif
+    double yaw = 0;
 
     // Subsystems
-    Drivetrain driveTrain(remote);
+    Drivetrain driveTrain(remote, yaw);
     Gimbal gimbal(remote);
     Flywheels flywheels(remote);
 
@@ -68,6 +63,7 @@ int main() {
         // Update IMU
         if (updateImuTimeout.execute()) {
             drivers->bmi088.periodicIMUUpdate();
+            yaw = drivers->bmi088.getYaw();
         }
 
         // Update all subsystems
@@ -93,8 +89,7 @@ int main() {
 // -----------------------------------------------------------------------------
 // I/O Initialization
 // -----------------------------------------------------------------------------
-static void initializeIo(src::Drivers* drivers)
-{
+static void initializeIo(src::Drivers* drivers) {
     drivers->analog.init();
     drivers->pwm.init();
     drivers->digital.init();
@@ -116,8 +111,7 @@ static void initializeIo(src::Drivers* drivers)
 // -----------------------------------------------------------------------------
 // I/O Update
 // -----------------------------------------------------------------------------
-static void updateIo(src::Drivers* drivers)
-{
+static void updateIo(src::Drivers* drivers) {
 #ifdef PLATFORM_HOSTED
     tap::motor::motorsim::DjiMotorSimHandler::getInstance()->updateSims();
 #endif

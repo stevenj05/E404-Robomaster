@@ -1,7 +1,8 @@
 #include "Drivetrain.hpp"
+#include <cmath>
 
-Drivetrain::Drivetrain(tap::communication::serial::Remote& remoteIn)
-: remote(remoteIn) {}
+Drivetrain::Drivetrain(tap::communication::serial::Remote& remoteIn, double &_yaw)
+: remote(remoteIn), yaw(_yaw) {}
 
 void Drivetrain::initialize() {
     motorFL.initialize();
@@ -10,6 +11,10 @@ void Drivetrain::initialize() {
     motorBR.initialize();
 
     lastToggleTime   = modm::chrono::milli_clock::now();
+
+    driveFunc = [&]() {
+        mecanumDrive();
+    };
 }
 
 // --- internal helper ---
@@ -22,6 +27,28 @@ bool Drivetrain::motorsHealthy() {
     bool brOk = std::abs(motorBR.getShaftRPM()) > minRpmResponse || std::abs(pidBR.getOutput()) < minRpmResponse;
 
     return (flOk && frOk && blOk && brOk);
+}
+
+void Drivetrain::mecanumDrive() {
+    pidFL.runControllerDerivateError(((fwdInput + strafeInput + turnInput) * 4000) - motorFL.getShaftRPM(), 1);
+    pidFR.runControllerDerivateError(((fwdInput - strafeInput - turnInput) * 4000) - motorFR.getShaftRPM(), 1);
+    pidBL.runControllerDerivateError(((-fwdInput - strafeInput + turnInput) * 4000) - motorBL.getShaftRPM(), 1);
+    pidBR.runControllerDerivateError(((-fwdInput + strafeInput - turnInput) * 4000) - motorBR.getShaftRPM(), 1);
+}
+
+void Drivetrain::gimbleOrientedDrive() {
+    double gyroDegrees = yaw;
+    float gyroRadians = gyroDegrees * pi/180;
+
+    float temp = fwdInput * cosf(gyroRadians) +
+        strafeInput * sinf(gyroRadians);
+
+    strafeInput = -fwdInput * sinf(gyroRadians) +
+        strafeInput * cosf(gyroRadians);
+
+    fwdInput = temp;
+
+    mecanumDrive();
 }
 
 void Drivetrain::update() {
@@ -38,11 +65,7 @@ void Drivetrain::update() {
         lastToggleTime = now;
     }
 
-    // Update PID controllers
-    pidFL.runControllerDerivateError(((fwdInput + strafeInput + turnInput) * 4000) - motorFL.getShaftRPM(), 1);
-    pidFR.runControllerDerivateError(((fwdInput - strafeInput - turnInput) * 4000) - motorFR.getShaftRPM(), 1);
-    pidBL.runControllerDerivateError(((-fwdInput - strafeInput + turnInput) * 4000) - motorBL.getShaftRPM(), 1);
-    pidBR.runControllerDerivateError(((-fwdInput + strafeInput - turnInput) * 4000) - motorBR.getShaftRPM(), 1);
+    driveFunc();
 
     // --- health-driven scaling ---
     if (motorsHealthy()) {
