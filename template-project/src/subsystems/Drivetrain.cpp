@@ -1,50 +1,65 @@
 #include "Drivetrain.hpp"
+#include <array>
 #include <cmath>
+#include <algorithm>
 
-Drivetrain::Drivetrain(tap::communication::serial::Remote& remoteIn, double &_yaw)
-: remote(remoteIn), yaw(_yaw) {}
+Drivetrain::Drivetrain(tap::communication::serial::Remote& remoteIn, double& _yaw)
+    : remote(remoteIn), yaw(_yaw) {}
 
 void Drivetrain::initialize() {
-    motorFL.initialize();
-    motorFR.initialize();
-    motorBL.initialize();
-    motorBR.initialize();
+    for (auto* motor : {&motorFL, &motorFR, &motorBL, &motorBR})
+        motor->initialize();
 
-    lastToggleTime   = modm::chrono::milli_clock::now();
-
-    driveFunc = [&]() {
-        mecanumDrive();
-    };
+    driveFunc = [&]() { mecanumDrive(); };
 }
 
 // --- internal helper ---
 bool Drivetrain::motorsHealthy() {
-    constexpr int minRpmResponse = 50; // acceptable difference
+    constexpr int minRpmResponse = 50; // acceptable threshold
 
-    bool flOk = std::abs(motorFL.getShaftRPM()) > minRpmResponse || std::abs(pidFL.getOutput()) < minRpmResponse;
-    bool frOk = std::abs(motorFR.getShaftRPM()) > minRpmResponse || std::abs(pidFR.getOutput()) < minRpmResponse;
-    bool blOk = std::abs(motorBL.getShaftRPM()) > minRpmResponse || std::abs(pidBL.getOutput()) < minRpmResponse;
-    bool brOk = std::abs(motorBR.getShaftRPM()) > minRpmResponse || std::abs(pidBR.getOutput()) < minRpmResponse;
+    struct MotorPidPair {
+        decltype(motorFL)& motor;
+        decltype(pidFL)& pid;
+    };
 
-    return (flOk && frOk && blOk && brOk);
+    const std::array<MotorPidPair, 4> pairs {{
+        {motorFL, pidFL}, {motorFR, pidFR},
+        {motorBL, pidBL}, {motorBR, pidBR}
+    }};
+
+    return std::all_of(pairs.begin(), pairs.end(), [&](const auto& p) {
+        const int rpm = std::abs(p.motor.getShaftRPM());
+        const int out = std::abs(p.pid.getOutput());
+        return rpm > minRpmResponse || out < minRpmResponse;
+    });
 }
 
 void Drivetrain::mecanumDrive() {
-    pidFL.runControllerDerivateError(((fwdInput + strafeInput + turnInput) * 4000) - motorFL.getShaftRPM(), 1);
-    pidFR.runControllerDerivateError(((fwdInput - strafeInput - turnInput) * 4000) - motorFR.getShaftRPM(), 1);
-    pidBL.runControllerDerivateError(((-fwdInput - strafeInput + turnInput) * 4000) - motorBL.getShaftRPM(), 1);
-    pidBR.runControllerDerivateError(((-fwdInput + strafeInput - turnInput) * 4000) - motorBR.getShaftRPM(), 1);
+    struct WheelNode {
+        decltype(pidFL)& pid;
+        decltype(motorFL)& motor;
+        double factor;
+    };
+
+    const std::array<WheelNode, 4> nodes {{
+        {pidFL, motorFL,  ( fwdInput +  strafeInput + turnInput)},
+        {pidFR, motorFR,  ( fwdInput -  strafeInput - turnInput)},
+        {pidBL, motorBL,  (-fwdInput -  strafeInput + turnInput)},
+        {pidBR, motorBR,  (-fwdInput +  strafeInput - turnInput)}
+    }};
+
+    for (auto& n : nodes)
+        n.pid.runControllerDerivateError((n.factor * 4000) - n.motor.getShaftRPM(), 1);
 }
 
 void Drivetrain::gimbleOrientedDrive() {
-    double gyroDegrees = yaw;
-    float gyroRadians = gyroDegrees * pi/180;
+    const float gyroRadians = static_cast<float>(yaw * pi / 180.0);
 
-    float temp = fwdInput * cosf(gyroRadians) +
-        strafeInput * sinf(gyroRadians);
+    const float temp = fwdInput * std::cos(gyroRadians) +
+                       strafeInput * std::sin(gyroRadians);
 
-    strafeInput = -fwdInput * sinf(gyroRadians) +
-        strafeInput * cosf(gyroRadians);
+    strafeInput = -fwdInput * std::sin(gyroRadians) +
+                   strafeInput * std::cos(gyroRadians);
 
     fwdInput = temp;
 
@@ -56,42 +71,51 @@ void Drivetrain::update() {
     strafeInput = remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
     turnInput   = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
 
-    auto now = modm::chrono::milli_clock::now();
-    bool switchDown = (remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH)
-                       == tap::communication::serial::Remote::SwitchState::DOWN);
-
-    if (switchDown && (now - lastToggleTime).count() > 250) {
-        beybladeMode = !beybladeMode;
-        lastToggleTime = now;
-    }
+    beybladeMode = (remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH)
+                    == tap::communication::serial::Remote::SwitchState::DOWN);
 
     driveFunc();
 
     // --- health-driven scaling ---
-    if (motorsHealthy()) {
-        // Gradually restore scale back toward 1.0
-        safetyScale += 0.05f;
-        if (safetyScale > 1.0f) safetyScale = 1.0f;
-    } else {
-        // Gradually reduce scale toward minimum safe output
-        safetyScale -= 0.05f;
-        if (safetyScale < 0.2f) safetyScale = 0.2f; // never fully off
-    }
+    const float delta = motorsHealthy() ? 0.05f : -0.05f;
+    safetyScale = std::clamp(safetyScale + delta, 0.2f, 1.0f);
+}
+
+DriveOutputs Drivetrain::computeDriveOutputs(float scale) {
+    DriveOutputs out;
+    out.fl = static_cast<int32_t>(pidFL.getOutput() * scale);
+    out.fr = static_cast<int32_t>(pidFR.getOutput() * scale);
+    out.bl = static_cast<int32_t>(pidBL.getOutput() * scale);
+    out.br = static_cast<int32_t>(pidBR.getOutput() * scale);
+    return out;
+}
+
+void Drivetrain::applyMotorOutputs(const DriveOutputs& drive) {
+    motorFL.setDesiredOutput(drive.fl);
+    motorFR.setDesiredOutput(drive.fr);
+    motorBL.setDesiredOutput(drive.bl);
+    motorBR.setDesiredOutput(drive.br);
+}
+
+void Drivetrain::applyBeybladeSpin(DriveOutputs drive, float scale) {
+    constexpr int32_t MAX_OUTPUT = 12000;
+    const int32_t spinPower = static_cast<int32_t>(8000 * scale);
+
+    drive.fl = std::clamp(drive.fl + spinPower, -MAX_OUTPUT, MAX_OUTPUT);
+    drive.fr = std::clamp(drive.fr - spinPower, -MAX_OUTPUT, MAX_OUTPUT);
+    drive.bl = std::clamp(drive.bl + spinPower, -MAX_OUTPUT, MAX_OUTPUT);
+    drive.br = std::clamp(drive.br - spinPower, -MAX_OUTPUT, MAX_OUTPUT);
+
+    applyMotorOutputs(drive);
 }
 
 void Drivetrain::tick(float scale) {
-    // Apply safety scaling directly on the provided scale
     scale *= safetyScale;
 
-    if (beybladeMode) {
-        motorFL.setDesiredOutput(12000 * scale);
-        motorFR.setDesiredOutput(-12000 * scale);
-        motorBL.setDesiredOutput(12000 * scale);
-        motorBR.setDesiredOutput(-12000 * scale);
-    } else {
-        motorFL.setDesiredOutput(static_cast<int32_t>(pidFL.getOutput() * scale));
-        motorFR.setDesiredOutput(static_cast<int32_t>(pidFR.getOutput() * scale));
-        motorBL.setDesiredOutput(static_cast<int32_t>(pidBL.getOutput() * scale));
-        motorBR.setDesiredOutput(static_cast<int32_t>(pidBR.getOutput() * scale));
-    }
+    auto driveOutputs = computeDriveOutputs(scale);
+
+    if (beybladeMode)
+        applyBeybladeSpin(driveOutputs, scale);
+    else
+        applyMotorOutputs(driveOutputs);
 }
