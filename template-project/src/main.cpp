@@ -6,8 +6,6 @@
 #include "tap/motor/motorsim/dji_motor_sim_handler.hpp"
 #endif
 
-
-// Include referenceHead FIRST to establish base taproot environment
 #include "subsystems/Drivetrain.hpp"
 #include "subsystems/Flywheels.hpp"
 #include "subsystems/Gimbal.hpp"
@@ -45,6 +43,7 @@ int main() {
     tap::motor::motorsim::DjiMotorSimHandler::getInstance()->resetMotorSims();
     tap::communication::TCPServer::MainServer()->getConnection();
 #endif
+
     double yaw = 0;
     double pitch = 0;
 
