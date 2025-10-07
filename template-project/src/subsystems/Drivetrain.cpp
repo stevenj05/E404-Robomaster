@@ -15,7 +15,7 @@ void Drivetrain::initialize() {
 
 // --- internal helper ---
 bool Drivetrain::motorsHealthy() {
-    constexpr int minRpmResponse = 50; // acceptable threshold
+    constexpr int minRpmResponse = 50;
 
     struct MotorPidPair {
         decltype(motorFL)& motor;
@@ -42,10 +42,10 @@ void Drivetrain::mecanumDrive() {
     };
 
     const std::array<WheelNode, 4> nodes {{
-        {pidFL, motorFL,  ( fwdInput +  strafeInput + turnInput)},
-        {pidFR, motorFR,  ( fwdInput -  strafeInput - turnInput)},
-        {pidBL, motorBL,  (-fwdInput -  strafeInput + turnInput)},
-        {pidBR, motorBR,  (-fwdInput +  strafeInput - turnInput)}
+        {pidFL, motorFL, static_cast<double>(fwdInput + strafeInput + turnInput)},
+        {pidFR, motorFR, static_cast<double>(fwdInput - strafeInput - turnInput)},
+        {pidBL, motorBL, static_cast<double>(-fwdInput - strafeInput + turnInput)},
+        {pidBR, motorBR, static_cast<double>(-fwdInput + strafeInput - turnInput)}
     }};
 
     for (auto& n : nodes)
@@ -53,7 +53,7 @@ void Drivetrain::mecanumDrive() {
 }
 
 void Drivetrain::gimbleOrientedDrive() {
-    const float gyroRadians = static_cast<float>(yaw * pi / 180.0);
+    const float gyroRadians = static_cast<float>(yaw * pi / 180.0f);
 
     const float temp = fwdInput * std::cos(gyroRadians) +
                        strafeInput * std::sin(gyroRadians);
@@ -81,13 +81,13 @@ void Drivetrain::update() {
     safetyScale = std::clamp(safetyScale + delta, 0.2f, 1.0f);
 
     // --- update Beyblade spin dynamically ---
-    auto now = modm::chrono::milli_clock::now();
-    if ((now - lastSpinUpdate).count() > 200) { // every 200 ms pick new random target
-        targetSpin = spinDist(rng);              // random spin in range
+    auto now = modm::chrono::micro_clock::now();
+
+    if ((now - lastSpinUpdate).count() > 200000) { // 200ms in microseconds
+        targetSpin = spinDist(rng);
         lastSpinUpdate = now;
     }
 
-    // gradually move current spin toward target for smooth behavior
     beybladeSpin += (targetSpin - beybladeSpin) * spinSmoothFactor;
 }
 
