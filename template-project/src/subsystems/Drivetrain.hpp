@@ -5,6 +5,8 @@
 #include "../Constants.hpp"
 #include <functional>
 #include <cmath>
+#include <random>
+#include <array>
 
 using namespace Constants;
 
@@ -24,7 +26,7 @@ private:
     // --- Internal helpers ---
     bool motorsHealthy();
     DriveOutputs computeDriveOutputs(float scale);
-    void applyMotorOutputs(const DriveOutputs& drive);
+    void applyMotorOutputs(DriveOutputs drive);
     void applyBeybladeSpin(DriveOutputs drive, float scale);
 
     void mecanumDrive();
@@ -55,4 +57,14 @@ private:
     int32_t fwdInput{0};
     int32_t strafeInput{0};
     int32_t turnInput{0};
+
+    // --- Beyblade spin ---
+    float beybladeSpin{8000.0f};           // current spin
+    float targetSpin{8000.0f};             // next random target
+    float spinSmoothFactor{0.1f};          // how quickly spin moves toward target
+    modm::chrono::milliseconds lastSpinUpdate{}; // last time spin target was updated
+
+    // Random engine
+    std::mt19937 rng{std::random_device{}()};
+    std::uniform_real_distribution<float> spinDist{6000.0f, 12000.0f}; // spin range
 };
