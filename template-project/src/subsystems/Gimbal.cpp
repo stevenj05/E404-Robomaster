@@ -1,7 +1,7 @@
 #include "Gimbal.hpp"
 
-Gimbal::Gimbal(tap::communication::serial::Remote& remoteIn)
-: remote(remoteIn) {}
+Gimbal::Gimbal(tap::communication::serial::Remote& remoteIn, double& _yaw, double& _pitch)
+: remote(remoteIn), yaw(_yaw), pitch(_pitch) {}
 
 void Gimbal::initialize() {
     motorPitch.initialize();

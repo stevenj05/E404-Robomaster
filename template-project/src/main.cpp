@@ -46,10 +46,11 @@ int main() {
     tap::communication::TCPServer::MainServer()->getConnection();
 #endif
     double yaw = 0;
+    double pitch = 0;
 
     // Subsystems
     Drivetrain driveTrain(remote, yaw);
-    Gimbal gimbal(remote);
+    Gimbal gimbal(remote, yaw, pitch);
     Flywheels flywheels(remote);
 
     // Initialize motors + PID
@@ -64,6 +65,7 @@ int main() {
         if (updateImuTimeout.execute()) {
             drivers->mpu6500.periodicIMUUpdate();
             yaw = drivers->mpu6500.getYaw();
+            pitch = drivers->mpu6500.getPitch();
         }
 
         // Update all subsystems

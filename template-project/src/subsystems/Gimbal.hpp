@@ -1,4 +1,5 @@
 #pragma once
+#include <sys/types.h>
 #include "tap/communication/serial/remote.hpp"
 #include "../Constants.hpp"
 
@@ -6,7 +7,7 @@ using namespace Constants;
 
 class Gimbal {
 public:
-    Gimbal(tap::communication::serial::Remote& remote);
+    Gimbal(tap::communication::serial::Remote& remote, double& _yaw, double& _pitch);
 
     void initialize();
     void update();
@@ -20,6 +21,7 @@ private:
     tap::algorithms::SmoothPid pidYaw{Constants::pidConfig6};
 
     tap::communication::serial::Remote& remote;
+    double yaw, pitch;
 
     int32_t targetPos{0};
 };
