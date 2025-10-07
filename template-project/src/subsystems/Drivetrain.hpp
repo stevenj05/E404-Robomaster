@@ -26,7 +26,7 @@ private:
     // --- Internal helpers ---
     bool motorsHealthy();
     DriveOutputs computeDriveOutputs(float scale);
-    void applyMotorOutputs(DriveOutputs drive);
+    void applyMotorOutputs(const DriveOutputs& drive);
     void applyBeybladeSpin(DriveOutputs drive, float scale);
 
     void mecanumDrive();
@@ -61,10 +61,10 @@ private:
     // --- Beyblade spin ---
     float beybladeSpin{8000.0f};           // current spin
     float targetSpin{8000.0f};             // next random target
-    float spinSmoothFactor{0.1f};          // how quickly spin moves toward target
-    modm::chrono::milliseconds lastSpinUpdate{}; // last time spin target was updated
+    float spinSmoothFactor{0.1f};          // how fast spin moves toward target
+    modm::chrono::micro_clock::time_point lastSpinUpdate{}; // last target update
 
     // Random engine
     std::mt19937 rng{std::random_device{}()};
-    std::uniform_real_distribution<float> spinDist{6000.0f, 12000.0f}; // spin range
+    std::uniform_real_distribution<float> spinDist{6000.0f, 12000.0f};
 };
