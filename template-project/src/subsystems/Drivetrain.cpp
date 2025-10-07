@@ -79,6 +79,16 @@ void Drivetrain::update() {
     // --- health-driven scaling ---
     const float delta = motorsHealthy() ? 0.05f : -0.05f;
     safetyScale = std::clamp(safetyScale + delta, 0.2f, 1.0f);
+
+    // --- update Beyblade spin dynamically ---
+    auto now = modm::chrono::milli_clock::now();
+    if ((now - lastSpinUpdate).count() > 200) { // every 200 ms pick new random target
+        targetSpin = spinDist(rng);              // random spin in range
+        lastSpinUpdate = now;
+    }
+
+    // gradually move current spin toward target for smooth behavior
+    beybladeSpin += (targetSpin - beybladeSpin) * spinSmoothFactor;
 }
 
 DriveOutputs Drivetrain::computeDriveOutputs(float scale) {
@@ -99,7 +109,7 @@ void Drivetrain::applyMotorOutputs(const DriveOutputs& drive) {
 
 void Drivetrain::applyBeybladeSpin(DriveOutputs drive, float scale) {
     constexpr int32_t MAX_OUTPUT = 12000;
-    const int32_t spinPower = static_cast<int32_t>(8000 * scale);
+    const int32_t spinPower = static_cast<int32_t>(beybladeSpin * scale);
 
     drive.fl = std::clamp(drive.fl + spinPower, -MAX_OUTPUT, MAX_OUTPUT);
     drive.fr = std::clamp(drive.fr - spinPower, -MAX_OUTPUT, MAX_OUTPUT);
