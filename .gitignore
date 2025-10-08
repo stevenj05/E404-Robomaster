@@ -18,3 +18,4 @@ docs/api
 docs/doxyoutput
 
 venv
+unixBuild.sh
