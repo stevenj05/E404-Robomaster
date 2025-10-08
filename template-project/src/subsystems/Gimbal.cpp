@@ -13,7 +13,8 @@ void Gimbal::initialize() {
     targetPitch = 0;
     targetYaw = 0;
 }
-
+    //Gets the vertical component of the right tick
+    //Applies it to pitch
 void Gimbal::update() {
     int32_t pitchInput = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
     if (std::abs(pitchInput) > 0) {
@@ -31,6 +32,7 @@ void Gimbal::update() {
     pidPitch.runControllerDerivateError(targetPitch - motorPitch.getEncoderUnwrapped(), 1);
 }
 
+//sets value to motor
 void Gimbal::tick(float scale) {
     motorPitch.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
     MotorYaw.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
