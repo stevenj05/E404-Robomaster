@@ -41,5 +41,6 @@ namespace Constants {
     static src::Drivers* drivers = src::DoNotUse_getDrivers();
 
     //PI
-    inline constexpr double pi = 3.1415926;
+    constexpr double pi = 3.14159265358979323846;
+    constexpr double DEG_TO_RAD = pi * static_cast<double>(0.005555555555555556); // 1/180 pre-multiplied
 }

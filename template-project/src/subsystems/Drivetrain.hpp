@@ -30,12 +30,15 @@ private:
     void applyBeybladeSpin(DriveOutputs drive, float scale);
 
     void mecanumDrive();
-    void gimbleOrientedDrive();
+    void gimbalOrientedDrive();
 
     // --- State ---
-    std::function<void()> driveFunc;
+    std::function<void()> mecanumFunc = [&]() { mecanumDrive(); };
+    std::function<void()> gyroFunc    = [&]() { gimbalOrientedDrive(); };
+    std::function<void()> driveFunc = mecanumFunc;
+
     float safetyScale{1.0f};
-    bool beybladeMode{false};
+    bool beybladeMode{false}, gimbalMode{false};
 
     // --- Hardware ---
     tap::motor::DjiMotor motorFL{drivers, M_ID1, CAN_BUS2, false, "motorFL"};

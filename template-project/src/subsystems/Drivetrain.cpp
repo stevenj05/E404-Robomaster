@@ -2,6 +2,8 @@
 #include <array>
 #include <cmath>
 #include <algorithm>
+#include "tap/algorithms/smooth_pid.hpp"
+#include "Constants.hpp"
 
 Drivetrain::Drivetrain(tap::communication::serial::Remote& remoteIn, double& _yaw)
     : remote(remoteIn), yaw(_yaw) {}
@@ -14,52 +16,50 @@ void Drivetrain::initialize() {
 }
 
 // --- internal helper ---
+constexpr inline bool motorHealthy(int rpm, int out, int threshold) noexcept {
+    return rpm > threshold || out < threshold;
+}
+
 bool Drivetrain::motorsHealthy() {
     constexpr int minRpmResponse = 50;
-
-    struct MotorPidPair {
-        decltype(motorFL)& motor;
-        decltype(pidFL)& pid;
-    };
-
-    const std::array<MotorPidPair, 4> pairs {{
-        {motorFL, pidFL}, {motorFR, pidFR},
-        {motorBL, pidBL}, {motorBR, pidBR}
-    }};
-
-    return std::all_of(pairs.begin(), pairs.end(), [&](const auto& p) {
-        const int rpm = std::abs(p.motor.getShaftRPM());
-        const int out = std::abs(p.pid.getOutput());
-        return rpm > minRpmResponse || out < minRpmResponse;
-    });
+    return
+        motorHealthy(std::abs(motorFL.getShaftRPM()), std::abs(pidFL.getOutput()), minRpmResponse) &&
+        motorHealthy(std::abs(motorFR.getShaftRPM()), std::abs(pidFR.getOutput()), minRpmResponse) &&
+        motorHealthy(std::abs(motorBL.getShaftRPM()), std::abs(pidBL.getOutput()), minRpmResponse) &&
+        motorHealthy(std::abs(motorBR.getShaftRPM()), std::abs(pidBR.getOutput()), minRpmResponse);
 }
 
 void Drivetrain::mecanumDrive() {
-    struct WheelNode {
-        decltype(pidFL)& pid;
-        decltype(motorFL)& motor;
-        double factor;
-    };
+    // Precompute combined factors once
+    const double flFactor =  fwdInput +  strafeInput + turnInput;
+    const double frFactor =  fwdInput -  strafeInput - turnInput;
+    const double blFactor = -fwdInput -  strafeInput + turnInput;
+    const double brFactor = -fwdInput +  strafeInput - turnInput;
 
-    const std::array<WheelNode, 4> nodes {{
-        {pidFL, motorFL, static_cast<double>(fwdInput + strafeInput + turnInput)},
-        {pidFR, motorFR, static_cast<double>(fwdInput - strafeInput - turnInput)},
-        {pidBL, motorBL, static_cast<double>(-fwdInput - strafeInput + turnInput)},
-        {pidBR, motorBR, static_cast<double>(-fwdInput + strafeInput - turnInput)}
-    }};
+    // Scale constant — compile-time if constexpr
+    constexpr double MAX_RPM = 4000.0;
 
-    for (auto& n : nodes)
-        n.pid.runControllerDerivateError((n.factor * 4000) - n.motor.getShaftRPM(), 1);
+    // Compute desired RPM for each wheel
+    const double flTarget = (flFactor * MAX_RPM) - motorFL.getShaftRPM();
+    const double frTarget = (frFactor * MAX_RPM) - motorFR.getShaftRPM();
+    const double blTarget = (blFactor * MAX_RPM) - motorBL.getShaftRPM();
+    const double brTarget = (brFactor * MAX_RPM) - motorBR.getShaftRPM();
+
+    // Run PID controllers directly
+    pidFL.runControllerDerivateError(flTarget, 1);
+    pidFR.runControllerDerivateError(frTarget, 1);
+    pidBL.runControllerDerivateError(blTarget, 1);
+    pidBR.runControllerDerivateError(brTarget, 1);
 }
 
-void Drivetrain::gimbleOrientedDrive() {
-    const float gyroRadians = static_cast<float>(yaw * pi / 180.0f);
+void Drivetrain::gimbalOrientedDrive() {
+    const double gyroRadians = yaw * DEG_TO_RAD;
 
-    const float temp = fwdInput * std::cos(gyroRadians) +
-                       strafeInput * std::sin(gyroRadians);
+    const float temp = fwdInput * cos(gyroRadians) +
+                       strafeInput * sin(gyroRadians);
 
-    strafeInput = -fwdInput * std::sin(gyroRadians) +
-                   strafeInput * std::cos(gyroRadians);
+    strafeInput = -fwdInput * sin(gyroRadians) +
+                   strafeInput * cos(gyroRadians);
 
     fwdInput = temp;
 
@@ -73,6 +73,9 @@ void Drivetrain::update() {
 
     beybladeMode = (remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH)
                     == tap::communication::serial::Remote::SwitchState::DOWN);
+
+    gimbalMode = beybladeMode || false; //temp for if they want a switch for just this
+    driveFunc = gimbalMode ? gyroFunc : mecanumFunc;
 
     driveFunc();
 
@@ -91,7 +94,7 @@ void Drivetrain::update() {
     beybladeSpin += (targetSpin - beybladeSpin) * spinSmoothFactor;
 }
 
-DriveOutputs Drivetrain::computeDriveOutputs(float scale) {
+inline DriveOutputs Drivetrain::computeDriveOutputs(float scale) {
     DriveOutputs out;
     out.fl = static_cast<int32_t>(pidFL.getOutput() * scale);
     out.fr = static_cast<int32_t>(pidFR.getOutput() * scale);
@@ -100,7 +103,7 @@ DriveOutputs Drivetrain::computeDriveOutputs(float scale) {
     return out;
 }
 
-void Drivetrain::applyMotorOutputs(const DriveOutputs& drive) {
+inline void Drivetrain::applyMotorOutputs(const DriveOutputs& drive) {
     motorFL.setDesiredOutput(drive.fl);
     motorFR.setDesiredOutput(drive.fr);
     motorBL.setDesiredOutput(drive.bl);
