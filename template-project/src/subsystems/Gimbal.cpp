@@ -32,6 +32,11 @@ void Gimbal::update() {
     pidPitch.runControllerDerivateError(targetPitch - motorPitch.getEncoderUnwrapped(), 1);
 }
 
+//this returns a runController inside it 
+        //runController runs the pid controller
+//runControllerDerivativeError
+//accounts for error between desired value and actual real output
+
 //sets value to motor
 void Gimbal::tick(float scale) {
     motorPitch.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
