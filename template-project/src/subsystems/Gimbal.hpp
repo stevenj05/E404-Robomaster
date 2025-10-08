@@ -24,4 +24,5 @@ private:
     double yaw, pitch;
 
     int32_t targetPitch{0};
+    int32_t targetYaw{0};
 };
