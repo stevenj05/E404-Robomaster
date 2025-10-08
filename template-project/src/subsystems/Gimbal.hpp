@@ -23,5 +23,5 @@ private:
     tap::communication::serial::Remote& remote;
     double yaw, pitch;
 
-    int32_t targetPos{0};
+    int32_t targetPitch{0};
 };
