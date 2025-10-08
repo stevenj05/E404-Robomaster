@@ -6,6 +6,8 @@ Gimbal::Gimbal(tap::communication::serial::Remote& remoteIn, double& _yaw, doubl
 void Gimbal::initialize() {
     motorPitch.initialize();
     motorPitch.resetEncoderValue();
+    MotorYaw.initialize();
+    MotorYaw.resetEncoderValue();
     targetPitch = 0;
 }
 
@@ -13,6 +15,7 @@ void Gimbal::update() {
     int32_t pitchInput = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
     if (std::abs(pitchInput) > 0) {
         targetPitch += pitchInput * 10; // sensitivity multiplier
+        
     }
 
     pidPitch.runControllerDerivateError(targetPitch - motorPitch.getEncoderUnwrapped(), 1);
