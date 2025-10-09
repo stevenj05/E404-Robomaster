@@ -30,6 +30,7 @@ void Gimbal::update() {
     }
 
     pidPitch.runControllerDerivateError(targetPitch - motorPitch.getEncoderUnwrapped(), 1);
+    pidYaw.runControllerDerivateError(targetYaw - MotorYaw.getEncoderUnwrapped(), 1);
 }
 
 //this returns a runController inside it 
