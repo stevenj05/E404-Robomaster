@@ -6,8 +6,8 @@ Gimbal::Gimbal(tap::communication::serial::Remote& remoteIn, double& _yaw, doubl
 void Gimbal::initialize() {
     motorPitch.initialize();
     motorPitch.resetEncoderValue();
-    MotorYaw.initialize();
-    MotorYaw.resetEncoderValue();
+    motorYaw.initialize();
+    motorYaw.resetEncoderValue();
 
     // Initialize target pitch and yaw to 0
     targetPitch = 0;
@@ -30,7 +30,7 @@ void Gimbal::update() {
     }
 
     pidPitch.runControllerDerivateError(targetPitch - motorPitch.getEncoderUnwrapped(), 1);
-    pidYaw.runControllerDerivateError(targetYaw - MotorYaw.getEncoderUnwrapped(), 1);
+    pidYaw.runControllerDerivateError(targetYaw - motorYaw.getEncoderUnwrapped(), 1);
 }
 
 //this returns a runController inside it 
@@ -41,5 +41,5 @@ void Gimbal::update() {
 //sets value to motor
 void Gimbal::tick(float scale) {
     motorPitch.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
-    MotorYaw.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
+    motorYaw.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
 }
