@@ -17,5 +17,5 @@ docs/_build
 docs/api
 docs/doxyoutput
 
-venv
+.venv
 unixBuild.sh

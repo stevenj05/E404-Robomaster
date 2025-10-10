@@ -17,7 +17,6 @@
 
 import os
 from os.path import join, abspath
-from sys import platform
 
 from SCons.Script import *
 
@@ -69,10 +68,6 @@ env["CONFIG_PROFILE"] = args["BUILD_PROFILE"]
 env.AppendUnique(CPPPATH=[
     abspath(r"src"),
     abspath(r"test"),
-])
-
-env.Append(LINKFLAGS=[
-    "-Wl,--gc-sections"
 ])
 
 
