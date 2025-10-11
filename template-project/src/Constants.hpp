@@ -11,6 +11,12 @@ namespace Constants {
     static constexpr tap::can::CanBus CAN_BUS2 = tap::can::CanBus::CAN_BUS2;
     
     // Motor IDs
+    // M_ID1 = Front Left Chassis Motor
+    // M_ID2 = Front Right Chassis Motor
+    // M_ID3 = Back Left Chassis Motor
+    // M_ID4 = Back Right Chassis Motor
+    // M_ID6 = Pitch
+    // M_ID7 = Yaw
     static constexpr tap::motor::MotorId M_ID1 = tap::motor::MOTOR2;
     static constexpr tap::motor::MotorId M_ID2 = tap::motor::MOTOR3;
     static constexpr tap::motor::MotorId M_ID3 = tap::motor::MOTOR4;
