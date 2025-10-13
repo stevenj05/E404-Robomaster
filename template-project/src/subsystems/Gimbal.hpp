@@ -17,6 +17,7 @@ private:
     tap::motor::DjiMotor motorPitch{drivers, Constants::M_ID6, Constants::CAN_BUS1, true, "motorPitch"};
     tap::motor::DjiMotor motorYaw{drivers, Constants::M_ID7, Constants::CAN_BUS1, true, "motorYaw"};
 
+    // SmoothPID controllers used to adjust output against error
     tap::algorithms::SmoothPid pidPitch{Constants::pidConfig5};
     tap::algorithms::SmoothPid pidYaw{Constants::pidConfig6};
 

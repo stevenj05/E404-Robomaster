@@ -22,15 +22,12 @@ void Gimbal::update() {
     if (std::abs(pitchInput) > 0) {
         // Pitch control
         targetPitch += pitchInput * 10; // sensitivity multiplier
-        
     }
 
     int32_t yawInput = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
     if (std::abs(yawInput) > 0) {
         // Yaw control
         targetYaw += yawInput * 10; // yaw sensitivity multiplier
-
-        
     }
 
     pidPitch.runControllerDerivateError(targetPitch - motorPitch.getEncoderUnwrapped(), 1);
@@ -45,5 +42,5 @@ void Gimbal::update() {
 //sets value to motor
 void Gimbal::tick(float scale) {
     motorPitch.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
-    motorYaw.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
+    motorYaw.setDesiredOutput(static_cast<int32_t>(pidYaw.getOutput() * scale));
 }
