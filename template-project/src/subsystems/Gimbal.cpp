@@ -4,6 +4,8 @@ Gimbal::Gimbal(tap::communication::serial::Remote& remoteIn, double& _yaw, doubl
 : remote(remoteIn), yaw(_yaw), pitch(_pitch) {}
 
 void Gimbal::initialize() {
+    // Initialize the gimbal motor, setting its pitch, yaw, and the corresponding measures'
+    // encoding angles to 0.
     motorPitch.initialize();
     motorPitch.resetEncoderValue();
     motorYaw.initialize();
@@ -13,10 +15,10 @@ void Gimbal::initialize() {
     targetPitch = 0;
     targetYaw = 0;
 }
-    //Gets the vertical component of the right tick
-    //Applies it to pitch
+    //Gets the vertical component of the right stick, applies it to pitch
 void Gimbal::update() {
     int32_t pitchInput = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
+    
     if (std::abs(pitchInput) > 0) {
         // Pitch control
         targetPitch += pitchInput * 10; // sensitivity multiplier
@@ -27,6 +29,8 @@ void Gimbal::update() {
     if (std::abs(yawInput) > 0) {
         // Yaw control
         targetYaw += yawInput * 10; // yaw sensitivity multiplier
+
+        
     }
 
     pidPitch.runControllerDerivateError(targetPitch - motorPitch.getEncoderUnwrapped(), 1);
