@@ -16,7 +16,7 @@ struct DriveOutputs {
 
 class Drivetrain {
 public:
-    Drivetrain(tap::communication::serial::Remote& remote, double& _yaw);
+    Drivetrain(src::Drivers*& _drivers, tap::communication::serial::Remote& remote, double& _yaw);
 
     void initialize();
     void update();
@@ -24,6 +24,7 @@ public:
 
 private:
     // --- Internal helpers ---
+    src::Drivers* drivers;
     bool motorsHealthy();
     DriveOutputs computeDriveOutputs(float scale);
     void applyMotorOutputs(const DriveOutputs& drive);

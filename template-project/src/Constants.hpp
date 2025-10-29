@@ -44,8 +44,6 @@ namespace Constants {
     static constexpr tap::algorithms::SmoothPidConfig flywheelPidConfig2{
         20, 0, 0, 100, tap::motor::DjiMotor::MAX_OUTPUT_C620, 1, 0, 1, 0};
 
-    static src::Drivers* drivers = src::DoNotUse_getDrivers();
-
     //PI
     constexpr double pi = 3.14159265358979323846;
     constexpr double DEG_TO_RAD = pi * static_cast<double>(0.005555555555555556); // 1/180 pre-multiplied

@@ -7,13 +7,14 @@ using namespace Constants;
 
 class Gimbal {
 public:
-    Gimbal(tap::communication::serial::Remote& remote, double& _yaw, double& _pitch);
+    Gimbal(src::Drivers*& _drivers, tap::communication::serial::Remote& remote, double& _yaw, double& _pitch);
 
     void initialize();
     void update();
     void tick(float scale = 1.0f);
 
 private:
+    src::Drivers* drivers;
     tap::motor::DjiMotor motorPitch{drivers, Constants::M_ID6, Constants::CAN_BUS1, true, "motorPitch"};
     tap::motor::DjiMotor motorYaw{drivers, Constants::M_ID7, Constants::CAN_BUS1, true, "motorYaw"};
 

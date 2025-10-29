@@ -1,7 +1,7 @@
 #include "Gimbal.hpp"
 
-Gimbal::Gimbal(tap::communication::serial::Remote& remoteIn, double& _yaw, double& _pitch)
-: remote(remoteIn), yaw(_yaw), pitch(_pitch) {}
+Gimbal::Gimbal(src::Drivers*& _drivers, tap::communication::serial::Remote& remoteIn, double& _yaw, double& _pitch)
+: drivers(_drivers), remote(remoteIn), yaw(_yaw), pitch(_pitch) {}
 
 void Gimbal::initialize() {
     // Initialize the gimbal motor, setting its pitch, yaw, and the corresponding measures'
@@ -29,8 +29,6 @@ void Gimbal::update() {
     if (std::abs(yawInput) > 0) {
         // Yaw control
         targetYaw += yawInput * 10; // yaw sensitivity multiplier
-
-        
     }
 
     pidPitch.runControllerDerivateError(targetPitch - motorPitch.getEncoderUnwrapped(), 1);
@@ -45,5 +43,5 @@ void Gimbal::update() {
 //sets value to motor
 void Gimbal::tick(float scale) {
     motorPitch.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
-    motorYaw.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
+    motorYaw.setDesiredOutput(static_cast<int32_t>(pidYaw.getOutput() * scale));
 }

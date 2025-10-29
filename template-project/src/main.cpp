@@ -30,12 +30,15 @@ int main() {
     std::cout << "Simulation starting..." << std::endl;
 #endif
 
-    tap::communication::serial::Remote remote(drivers);
+    src::Drivers* drivers = src::DoNotUse_getDrivers();
 
-    Board::initialize();
     initializeIo(drivers);
+    Board::initialize();
 
+
+    tap::communication::serial::Remote remote(drivers);
     remote.initialize();
+
     drivers->mpu6500.init(500.f, 0.1f, 0.0f);
     drivers->pwm.setTimerFrequency(tap::gpio::Pwm::Timer::TIMER8, PWM_FREQUENCY);
 
@@ -48,9 +51,9 @@ int main() {
     double pitch = 0;
 
     // Subsystems
-    Drivetrain driveTrain(remote, yaw);
-    Gimbal gimbal(remote, yaw, pitch);
-    Flywheels flywheels(remote);
+    Drivetrain driveTrain(drivers, remote, yaw);
+    Gimbal gimbal(drivers, remote, yaw, pitch);
+    Flywheels flywheels(drivers, remote);
 
     // Initialize motors + PID
     driveTrain.initialize();
@@ -78,6 +81,8 @@ int main() {
             gimbal.tick();
             flywheels.tick();
         }
+
+        drivers->djiMotorTxHandler.encodeAndSendCanData();
 
         updateIo(drivers);
         modm::delay_us(100);

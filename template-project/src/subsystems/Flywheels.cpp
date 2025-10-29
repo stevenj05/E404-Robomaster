@@ -1,7 +1,7 @@
 #include "Flywheels.hpp"
 
-Flywheels::Flywheels(tap::communication::serial::Remote& remoteIn)
-:  remote(remoteIn) {}
+Flywheels::Flywheels(src::Drivers*& _drivers, tap::communication::serial::Remote& remoteIn)
+:  drivers(_drivers), remote(remoteIn) {}
 
 void Flywheels::initialize() {
     flywheel1.initialize();

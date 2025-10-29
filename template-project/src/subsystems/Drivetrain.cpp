@@ -5,8 +5,8 @@
 #include "tap/algorithms/smooth_pid.hpp"
 #include "Constants.hpp"
 
-Drivetrain::Drivetrain(tap::communication::serial::Remote& remoteIn, double& _yaw)
-    : remote(remoteIn), yaw(_yaw) {}
+Drivetrain::Drivetrain(src::Drivers*& _drivers, tap::communication::serial::Remote& remoteIn, double& _yaw)
+    : drivers(_drivers), remote(remoteIn), yaw(_yaw) {}
 
 void Drivetrain::initialize() {
     for (auto* motor : {&motorFL, &motorFR, &motorBL, &motorBR})
