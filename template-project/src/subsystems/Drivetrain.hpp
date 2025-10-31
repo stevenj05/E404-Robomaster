@@ -1,12 +1,8 @@
 #pragma once
 
-#include <tap/communication/serial/remote.hpp>
-#include "modm/processing/timer.hpp"
+#include "../drivers_singleton.hpp"
 #include "../Constants.hpp"
-#include <functional>
-#include <cmath>
 #include <random>
-#include <array>
 
 using namespace Constants;
 
@@ -16,15 +12,16 @@ struct DriveOutputs {
 
 class Drivetrain {
 public:
-    Drivetrain(src::Drivers*& _drivers, tap::communication::serial::Remote& remote, double& _yaw);
+    Drivetrain(src::Drivers* _drivers, tap::communication::serial::Remote& remote, double& _yaw);
 
     void initialize();
     void update();
     void tick(float scale = 1.0f);
 
 private:
-    // --- Internal helpers ---
     src::Drivers* drivers;
+
+    // --- Internal helpers ---
     bool motorsHealthy();
     DriveOutputs computeDriveOutputs(float scale);
     void applyMotorOutputs(const DriveOutputs& drive);
@@ -34,28 +31,25 @@ private:
     void gimbalOrientedDrive();
 
     // --- State ---
-    std::function<void()> mecanumFunc = [&]() { mecanumDrive(); };
-    std::function<void()> gyroFunc    = [&]() { gimbalOrientedDrive(); };
-    std::function<void()> driveFunc = mecanumFunc;
+    std::function<void()> mecanumFunc;
+    std::function<void()> gimbalFunc;
+    std::function<void()> driveFunc;
 
     float safetyScale{1.0f};
     bool beybladeMode{false}, gimbalMode{false};
 
     // --- Hardware ---
-    tap::motor::DjiMotor motorFL{drivers, M_ID1, CAN_BUS2, false, "motorFL"};
-    tap::motor::DjiMotor motorFR{drivers, M_ID2, CAN_BUS2, true,  "motorFR"};
-    tap::motor::DjiMotor motorBL{drivers, M_ID3, CAN_BUS2, false, "motorBL"};
-    tap::motor::DjiMotor motorBR{drivers, M_ID4, CAN_BUS2, true,  "motorBR"};
+    std::optional<tap::motor::DjiMotor> motorFL, motorFR, motorBL, motorBR;
 
     // --- PID Controllers ---
-    tap::algorithms::SmoothPid pidFL{pidConfig1};
-    tap::algorithms::SmoothPid pidFR{pidConfig2};
-    tap::algorithms::SmoothPid pidBL{pidConfig3};
-    tap::algorithms::SmoothPid pidBR{pidConfig4};
+    tap::algorithms::SmoothPid pidFL{chassis_pid_fl};
+    tap::algorithms::SmoothPid pidFR{chassis_pid_fr};
+    tap::algorithms::SmoothPid pidBL{chassis_pid_bl};
+    tap::algorithms::SmoothPid pidBR{chassis_pid_br};
 
     // --- Remote & Orientation ---
     tap::communication::serial::Remote& remote;
-    double yaw;
+    double& yaw;
 
     // --- Inputs ---
     int32_t fwdInput{0};

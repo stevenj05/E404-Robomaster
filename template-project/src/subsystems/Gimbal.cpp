@@ -1,15 +1,19 @@
 #include "Gimbal.hpp"
 
-Gimbal::Gimbal(src::Drivers*& _drivers, tap::communication::serial::Remote& remoteIn, double& _yaw, double& _pitch)
+Gimbal::Gimbal(src::Drivers* _drivers, tap::communication::serial::Remote& remoteIn, double& _yaw, double& _pitch)
 : drivers(_drivers), remote(remoteIn), yaw(_yaw), pitch(_pitch) {}
 
 void Gimbal::initialize() {
+    motorPitch.emplace(drivers, gimbal_pitch, can_turret, true, "motorPitch");
+    motorYaw.emplace(drivers, gimbal_yaw, can_turret, true, "motorYaw");
+
     // Initialize the gimbal motor, setting its pitch, yaw, and the corresponding measures'
     // encoding angles to 0.
-    motorPitch.initialize();
-    motorPitch.resetEncoderValue();
-    motorYaw.initialize();
-    motorYaw.resetEncoderValue();
+    motorPitch->initialize();
+    motorYaw->initialize();
+
+    motorPitch->resetEncoderValue();
+    motorYaw->resetEncoderValue();
 
     // Initialize target pitch and yaw to 0
     targetPitch = 0;
@@ -31,8 +35,8 @@ void Gimbal::update() {
         targetYaw += yawInput * 10; // yaw sensitivity multiplier
     }
 
-    pidPitch.runControllerDerivateError(targetPitch - motorPitch.getEncoderUnwrapped(), 1);
-    pidYaw.runControllerDerivateError(targetYaw - motorYaw.getEncoderUnwrapped(), 1);
+    pidPitch.runControllerDerivateError(targetPitch - motorPitch->getEncoderUnwrapped(), 1);
+    pidYaw.runControllerDerivateError(targetYaw - motorYaw->getEncoderUnwrapped(), 1);
 }
 
 //this returns a runController inside it 
@@ -42,6 +46,6 @@ void Gimbal::update() {
 
 //sets value to motor
 void Gimbal::tick(float scale) {
-    motorPitch.setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
-    motorYaw.setDesiredOutput(static_cast<int32_t>(pidYaw.getOutput() * scale));
+    motorPitch->setDesiredOutput(static_cast<int32_t>(pidPitch.getOutput() * scale));
+    motorYaw->setDesiredOutput(static_cast<int32_t>(pidYaw.getOutput() * scale));
 }

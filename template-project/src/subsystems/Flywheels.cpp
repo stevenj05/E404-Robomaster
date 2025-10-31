@@ -1,11 +1,14 @@
 #include "Flywheels.hpp"
 
-Flywheels::Flywheels(src::Drivers*& _drivers, tap::communication::serial::Remote& remoteIn)
+Flywheels::Flywheels(src::Drivers* _drivers, tap::communication::serial::Remote& remoteIn)
 :  drivers(_drivers), remote(remoteIn) {}
 
 void Flywheels::initialize() {
-    flywheel1.initialize();
-    flywheel2.initialize();
+    flywheel1.emplace(drivers, flywheel_1, can_turret, false, "flywheel1");
+    flywheel2.emplace(drivers, flywheel_2, can_turret, false, "flywheel2");
+
+    flywheel1->initialize();
+    flywheel2->initialize();
 }
 
 void Flywheels::update() {
@@ -20,11 +23,11 @@ void Flywheels::update() {
     }
 
 
-    pid1.runControllerDerivateError(desiredRPM - flywheel1.getShaftRPM(), 1);
-    pid2.runControllerDerivateError(desiredRPM - flywheel2.getShaftRPM(), 1);
+    pid1.runControllerDerivateError(desiredRPM - flywheel1->getShaftRPM(), 1);
+    pid2.runControllerDerivateError(desiredRPM - flywheel2->getShaftRPM(), 1);
 }
 
 void Flywheels::tick(float scale) {
-    flywheel1.setDesiredOutput(static_cast<int32_t>(pid1.getOutput()*scale));
-    flywheel2.setDesiredOutput(static_cast<int32_t>(pid2.getOutput()*scale));
+    flywheel1->setDesiredOutput(static_cast<int32_t>(pid1.getOutput()*scale));
+    flywheel2->setDesiredOutput(static_cast<int32_t>(pid2.getOutput()*scale));
 }

@@ -1,10 +1,13 @@
 // ========== main.cpp ==========
 // Standard includes
 #include "Constants.hpp"
+
 #ifdef PLATFORM_HOSTED
 #include "tap/communication/tcp-server/tcp_server.hpp"
 #include "tap/motor/motorsim/dji_motor_sim_handler.hpp"
 #endif
+
+#include "drivers_singleton.hpp"
 
 #include "subsystems/Drivetrain.hpp"
 #include "subsystems/Flywheels.hpp"
@@ -13,7 +16,7 @@
 using namespace Constants;
 
 // Timers
-tap::arch::PeriodicMilliTimer sendMotorTimeout(1000.0f / MAIN_LOOP_FREQUENCY);
+tap::arch::PeriodicMilliTimer sendMotorTimeout(1000.0f / main_loop_freq_hz);
 tap::arch::PeriodicMilliTimer updateImuTimeout(2);
 
 // -----------------------------------------------------------------------------
@@ -35,12 +38,8 @@ int main() {
     initializeIo(drivers);
     Board::initialize();
 
-
-    tap::communication::serial::Remote remote(drivers);
-    remote.initialize();
-
     drivers->mpu6500.init(500.f, 0.1f, 0.0f);
-    drivers->pwm.setTimerFrequency(tap::gpio::Pwm::Timer::TIMER8, PWM_FREQUENCY);
+    drivers->pwm.setTimerFrequency(tap::gpio::Pwm::Timer::TIMER8, pwm_freq_hz);
 
 #ifdef PLATFORM_HOSTED
     tap::motor::motorsim::DjiMotorSimHandler::getInstance()->resetMotorSims();
@@ -51,9 +50,9 @@ int main() {
     double pitch = 0;
 
     // Subsystems
-    Drivetrain driveTrain(drivers, remote, yaw);
-    Gimbal gimbal(drivers, remote, yaw, pitch);
-    Flywheels flywheels(drivers, remote);
+    Drivetrain driveTrain(drivers, drivers->remote, yaw);
+    Gimbal gimbal(drivers, drivers->remote, yaw, pitch);
+    Flywheels flywheels(drivers, drivers->remote);
 
     // Initialize motors + PID
     driveTrain.initialize();
@@ -61,7 +60,7 @@ int main() {
     flywheels.initialize();
 
     while (true) {
-        remote.read();
+        updateIo(drivers);
 
         // Update IMU
         if (updateImuTimeout.execute()) {
@@ -83,9 +82,6 @@ int main() {
         }
 
         drivers->djiMotorTxHandler.encodeAndSendCanData();
-
-        updateIo(drivers);
-        modm::delay_us(100);
     }
 
     return 0;
@@ -103,7 +99,7 @@ static void initializeIo(src::Drivers* drivers) {
     drivers->can.initialize();
     drivers->errorController.init();
     drivers->remote.initialize();
-    drivers->mpu6500.init(MAIN_LOOP_FREQUENCY, 0.1, 0);
+    drivers->mpu6500.init(main_loop_freq_hz, 0.1, 0);
     drivers->refSerial.initialize();
     drivers->terminalSerial.initialize();
     drivers->schedulerTerminalHandler.init();
