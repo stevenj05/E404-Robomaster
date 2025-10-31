@@ -26,7 +26,6 @@ void Gimbal::update() {
     if (std::abs(pitchInput) > 0) {
         // Pitch control
         targetPitch += pitchInput * 10; // sensitivity multiplier
-        
     }
 
     int32_t yawInput = remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
