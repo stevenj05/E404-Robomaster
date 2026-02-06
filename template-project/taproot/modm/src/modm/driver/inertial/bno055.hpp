@@ -487,7 +487,7 @@ public:
 		AccGyro = 0b0101,
 		MagGyro = 0b0110,
 		AMG = 0b0111,
-		GYRO = 0b1000,
+		IMU = 0b1000,
 		Compass = 0b1001,
 		M4G = 0b1010,
 		NDOF_FMC_Off = 0b1011,

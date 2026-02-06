@@ -2,6 +2,8 @@
 
 template-project/build
 template-project/Pipfile.lock
+template-project/.cache
+template-project/compile_commands.json
 project.xml.log
 
 .vscode/.cortex-debug.peripherals.state.json
@@ -14,3 +16,6 @@ gcov-result
 docs/_build
 docs/api
 docs/doxyoutput
+
+.venv
+unixBuild.sh
