@@ -19,3 +19,5 @@ docs/doxyoutput
 
 .venv
 unixBuild.sh
+template-project/.DS_Store
+.DS_Store

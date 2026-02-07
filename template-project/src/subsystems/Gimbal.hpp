@@ -1,30 +1,63 @@
-#pragma once
+#ifndef GIMBAL_HPP
+#define GIMBAL_HPP
 
 #include "../drivers_singleton.hpp"
-#include "../Constants.hpp"
+#include "tap/motor/dji_motor.hpp"
+#include "tap/algorithms/smooth_pid.hpp"
 
-using namespace Constants;
-
-class Gimbal {
+class Gimbal
+{
 public:
-    Gimbal(src::Drivers* _drivers, tap::communication::serial::Remote& remote, double& _yaw, double& _pitch);
+    Gimbal(src::Drivers *drivers);
+    ~Gimbal() = default;
 
+    /**
+     * Initialize gimbal subsystem
+     */
     void initialize();
+
+    /**
+     * Update gimbal control
+     */
     void update();
-    void tick(float scale = 1.0f);
+
+    /**
+     * Send motor commands via CAN
+     */
+    void sendMotorCommands();
+    
+    /**
+     * Get current pitch encoder position
+     */
+    float getPitchEncoderPosition() const;
 
 private:
-    src::Drivers* drivers;
-   
-    std::optional<tap::motor::DjiMotor> motorPitch, motorYaw;
-
-    tap::algorithms::SmoothPid pidPitch{gimbal_pid_pitch};
-    tap::algorithms::SmoothPid pidYaw{gimbal_pid_yaw};
-
-    tap::communication::serial::Remote& remote;
-    double& yaw;
-    double& pitch;
-
-    int32_t targetPitch{0};
-    int32_t targetYaw{0};
+    static constexpr tap::can::CanBus CAN_BUS = tap::can::CanBus::CAN_BUS1;
+    
+    // Motor IDs: Yaw = MOTOR5 (ID 0x205), Pitch = MOTOR8 (ID 0x208)
+    // Both motors are INVERTED (true)
+    tap::motor::DjiMotor *yawMotor;
+    tap::motor::DjiMotor *pitchMotor;
+    
+    // PID controllers for each motor
+    tap::algorithms::SmoothPid *pidYaw;
+    tap::algorithms::SmoothPid *pidPitch;
+    
+    // Gimbal target positions (encoder-based)
+    float gimbalYawTargetPos = 0.0f;
+    float gimbalPitchTargetPos = 0.0f;
+    bool firstPitchUpdate = true;
+    
+    // PID activation delay (3 seconds at ~500Hz update rate = 1500 ticks)
+    static constexpr uint32_t PID_ACTIVATION_DELAY = 1500;
+    uint32_t updateCounter = 0;
+    bool pidYawActive = false;
+    bool pidPitchActive = false;
+    
+    // Motor constants
+    static constexpr int MAX_GIMBAL_RPM = 500;
+    
+    src::Drivers *drivers;
 };
+
+#endif  // GIMBAL_HPP
