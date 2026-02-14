@@ -1,7 +1,7 @@
 #ifndef TURRET_HPP
 #define TURRET_HPP
 
-#include "../drivers_singleton.hpp"
+#include "drivers.hpp"
 #include "tap/algorithms/smooth_pid.hpp"
 #include "tap/communication/gpio/digital.hpp"
 #include "tap/communication/serial/remote.hpp"
