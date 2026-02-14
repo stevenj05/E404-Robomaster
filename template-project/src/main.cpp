@@ -18,6 +18,7 @@ int main()
     Turret turret(drivers, &drivers->remote);
     Gimbal gimbal(drivers);
     Chassis chassis(drivers);
+    chassis.setGimbal(&gimbal);
 
     turret.initialize();
     gimbal.initialize();

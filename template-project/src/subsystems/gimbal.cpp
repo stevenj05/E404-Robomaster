@@ -6,16 +6,23 @@ Gimbal::Gimbal(src::Drivers *drivers)
       yawMotor(new tap::motor::DjiMotor(drivers, tap::motor::MOTOR5, CAN_BUS, true, "Yaw Motor")),
       pitchMotor(new tap::motor::DjiMotor(drivers, tap::motor::MOTOR8, CAN_BUS, true, "Pitch Motor")),
       // Initialize PID controllers matching the working code
-      pidYaw(new tap::algorithms::SmoothPid(tap::algorithms::SmoothPidConfig{150, 0, 0.3, 0, 13300, 1, 0, 1, 0})),
+      pidYaw(new tap::algorithms::SmoothPid(tap::algorithms::SmoothPidConfig{70, 0, 0.2, 0, 13300, 1, 0, 1, 0})),
       pidPitch(new tap::algorithms::SmoothPid(tap::algorithms::SmoothPidConfig{100, 0, 0.5, 0, 15000, 1, 0, 1, 0}))
 {
 }
 
 void Gimbal::initialize()
-
 {
+    // Resets the encoder value to determine the fixed, absolute orientation
+    // of the chassis on startup.
+    yawMotor->resetEncoderValue();
+
+    // Initialize the yaw and pitch motors.
     yawMotor->initialize();
     pitchMotor->initialize();
+    
+    // Capture initial yaw encoder for turret-centric drive calibration
+    initialYawEncoder = yawMotor->getEncoderUnwrapped();
 }
 
 void Gimbal::update()
@@ -43,13 +50,13 @@ void Gimbal::update()
     if (!pidYawActive)
     {
         // During startup (first 3 seconds): direct output control, no jerk
-        yawMotor->setDesiredOutput(static_cast<int32_t>(yawInput * 13300));
+        yawMotor->setDesiredOutput(static_cast<int32_t>(-yawInput * 13300));
     }
     else
     {
         // After 3 seconds: activate PID for position holding
         // Update target position based on joystick input
-        gimbalYawTargetPos += yawInput * 12.0f;  // Faster accumulation for quicker yaw response
+        gimbalYawTargetPos += -yawInput * 12.0f;  // Faster accumulation for quicker yaw response
         
         // Update PID controller with error derivative computation
         float yawError = gimbalYawTargetPos - yawMotor->getEncoderUnwrapped();
@@ -89,3 +96,12 @@ float Gimbal::getPitchEncoderPosition() const
 {
     return pitchMotor->getEncoderUnwrapped();
 }
+
+float Gimbal::getYawAngleDegrees() const
+{
+    float encoderDiff = yawMotor->getEncoderUnwrapped() - initialYawEncoder;
+    // Account for 2:1 gear ratio: motor spins 2x per turret rotation
+    return (encoderDiff / ENCODER_COUNTS_PER_DEGREE) / YAW_GEAR_RATIO;
+}
+
+
