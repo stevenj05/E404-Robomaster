@@ -37,8 +37,12 @@ public:
     
     /**
      * Set gimbal pointer for turret-centric drive
+     * Does NOT trigger calibration—calibration must be done manually via LEFT_SWITCH
      */
-    void setGimbal(Gimbal *gimbal_ptr) { gimbal = gimbal_ptr; }
+    void setGimbal(Gimbal *gimbal_ptr) 
+    { 
+        gimbal = gimbal_ptr;
+    }
     
     /**
      * Get actual chassis angular velocity in degrees per second
@@ -67,20 +71,27 @@ private:
     tap::algorithms::SmoothPid *pidBL;
     tap::algorithms::SmoothPid *pidBR;
     
-    
     // Store desired RPM for each motor
     float desiredRpmFL = 0.0f;
     float desiredRpmFR = 0.0f;
     float desiredRpmBL = 0.0f;
     float desiredRpmBR = 0.0f;
     
-    // Auto-calibration: stores the gimbal's initial yaw angle on startup
-    float initialGimbalYawOffset = 0.0f;
-    bool isCalibrated = false;
-    
     // Constants
     static constexpr tap::can::CanBus CAN_BUS = tap::can::CanBus::CAN_BUS1;
-    static constexpr float MAX_CHASSIS_RPM = 6000.0f;
+    static constexpr float MAX_CHASSIS_RPM = 4800.0f; // Reduced by 20% (was 6000)
+    // INCREASED to 3300 RPM for faster beyblade spin
+    static constexpr float MAX_SHURIKEN_SPEED = 3300.0f;  
+    static constexpr float DOWNSCALE_COEFFICIENT = 2.0f;  // Higher = less downscaling at high speed
+    
+    /**
+     * Calculate downscale factor based on translation magnitude
+     * When moving slowly: downscale ≈ 1.0 (full spin speed)
+     * When moving fast: downscale reduces (less spin, better stability)
+     * @param translationMagnitude magnitude of velocity vector
+     * @return downscale factor between 0.0 and 1.0
+     */
+    float calculateDownscale(float translationMagnitude) const;
 };
 
 #endif  // CHASSIS_HPP

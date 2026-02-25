@@ -26,9 +26,16 @@ int main()
 
     drivers->remote.initialize();
     drivers->can.initialize();
+    
+    // Initialize BMI088 IMU
+    // Arguments: sampleFrequency (Hz), Kp, Ki for Mahony filter
+    drivers->bmi088.initialize(MAIN_LOOP_FREQUENCY, 2.0f, 0.0f);
 
     while (1)
     {
+        // Must update IMU at 500Hz loop rate
+        drivers->bmi088.periodicIMUUpdate();
+        
         drivers->remote.read();
         drivers->canRxHandler.pollCanData();
 
