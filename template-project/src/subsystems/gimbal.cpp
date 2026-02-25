@@ -3,22 +3,6 @@
 #include <cmath>
 #include <cstdio>
 
-namespace
-{
-float wrapDegrees(float deg)
-{
-    while (deg > 180.0f)
-    {
-        deg -= 360.0f;
-    }
-    while (deg < -180.0f)
-    {
-        deg += 360.0f;
-    }
-    return deg;
-}
-}  // namespace
-
 Gimbal::Gimbal(src::Drivers *drivers)
     : drivers(drivers),
       // Initialize motors on CAN1 - MOTOR5=Yaw, MOTOR8=Pitch (both INVERTED)
