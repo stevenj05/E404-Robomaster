@@ -41,8 +41,8 @@ void Chassis::update()
                           tap::communication::serial::Remote::SwitchState::UP);
     
     // 1. Get raw joystick inputs
-    float raw_vx = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL); 
-    float raw_vy = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
+    float raw_vx = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL); 
+    float raw_vy = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL);
     
     // 2. Adaptive Shuriken Speed (based on translation magnitude)
     // When moving fast: reduce spin for stability
@@ -130,33 +130,6 @@ void Chassis::sendMotorCommands()
     drivers->djiMotorTxHandler.encodeAndSendCanData();
 }
 
-void Chassis::setVelocity(float vx, float vy, float omega)
-{
-    // Apply turret-centric transform to input velocities
-    float turret_angle_deg = 0.0f;
-    if (gimbal != nullptr && gimbal->isCalibrated())
-    {
-        // Use corrected encoder angle from gimbal (accounts for mounting offset)
-        turret_angle_deg = gimbal->getCorrectedEncoderYawDegrees();
-    }
-    float theta = -turret_angle_deg * (M_PI / 180.0f);  // Negate for correct rotation direction
-    
-    // Transform inputs to Turret-Centric
-    float vx_transformed = vx * cos(theta) - vy * sin(theta);
-    float vy_transformed = vx * sin(theta) + vy * cos(theta);
-    
-    // X-drive kinematics: wheels at 45 degree angles
-    float fl_speed = vx_transformed + vy_transformed + omega;
-    float fr_speed = -vx_transformed + vy_transformed - omega;
-    float bl_speed = vx_transformed - vy_transformed + omega;
-    float br_speed = -vx_transformed - vy_transformed - omega;
-    
-    // Convert to desired RPM for PID control
-    desiredRpmFL = fl_speed * MAX_CHASSIS_RPM;
-    desiredRpmFR = fr_speed * MAX_CHASSIS_RPM;
-    desiredRpmBL = bl_speed * MAX_CHASSIS_RPM;
-    desiredRpmBR = br_speed * MAX_CHASSIS_RPM;
-}
 float Chassis::calculateDownscale(float translationMagnitude) const
 {
     // Adaptive downscaling based on FANG Robotics' Shuriken implementation
