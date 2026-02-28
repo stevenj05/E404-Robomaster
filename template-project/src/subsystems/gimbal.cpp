@@ -222,6 +222,8 @@ void Gimbal::update()
         // During startup, measure and accumulate gyro drift to calculate bias offset
         if (beybladeStartupCounter > 0)
         {
+            // Calculates difference between the current gyro heading and last recorded gyro heading
+            // taken from bmi088->getYaw().
             float headingDelta = wrapDegrees(currentHeading - lastGyroHeadingDeg);
             gyroHeadingDeltaAccumulator += headingDelta;
             gyroCalibrationSampleCount++;
@@ -255,7 +257,7 @@ void Gimbal::update()
 
             // Use REAL Sensor Data with restored Deadband:
             // Reduced multiplier to 1.2f to ensure joystick input can override gyro corrections
-            float positionIncrement = -headingDelta * 1.2f * ENCODER_COUNTS_PER_DEGREE * YAW_GEAR_RATIO;
+            float positionIncrement = -headingDelta * 1.0f * ENCODER_COUNTS_PER_DEGREE * YAW_GEAR_RATIO;
             
             gimbalYawTargetPos += positionIncrement;
 
