@@ -41,8 +41,8 @@ void Chassis::update()
                           tap::communication::serial::Remote::SwitchState::UP);
     
     // 1. Get raw joystick inputs
-    float raw_vx = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL); 
-    float raw_vy = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
+    float raw_vx = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL); 
+    float raw_vy = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL);
     
     // 2. Adaptive Shuriken Speed (based on translation magnitude)
     // When moving fast: reduce spin for stability
@@ -100,10 +100,19 @@ void Chassis::update()
     
     // 5. Your existing X-drive kinematics
     // All motors get same omega contribution for all 4 spinning same direction
+    // === OLD CODE ===
+    /*
     float fl_speed = vx + vy + omega;
-    float fr_speed = -vx + vy + omega;
-    float bl_speed = vx - vy + omega;
+    float fr_speed = -vx + vy - omega;
+    float bl_speed = vx - vy - omega;
     float br_speed = -vx - vy + omega;
+    */
+    // 5. Your existing X-drive kinematics
+    // All motors get same omega contribution for all 4 spinning same direction
+    float fl_speed = vx + vy + omega;
+    float fr_speed = vx - vy - omega;
+    float bl_speed = -vx + vy - omega;
+    float br_speed = vx - vy + omega;
     
     // 6. Scale to MAX_CHASSIS_RPM (Your existing logic)
     desiredRpmFL = fl_speed * MAX_CHASSIS_RPM;
