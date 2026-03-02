@@ -109,8 +109,8 @@ void Chassis::update()
     */
     // 5. Your existing X-drive kinematics
     // All motors get same omega contribution for all 4 spinning same direction
-    float fl_speed = vx + vy + omega;
-    float fr_speed = vx - vy - omega;
+    float fl_speed = vx + vy - omega;
+    float fr_speed = vx - vy + omega;
     float bl_speed = -vx + vy - omega;
     float br_speed = vx - vy + omega;
     
