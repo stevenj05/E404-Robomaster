@@ -7,10 +7,10 @@ Chassis::Chassis(src::Drivers *drivers)
     : drivers(drivers), gimbal(nullptr),
       // Initialize motors on CAN1 with correct IDs
       // Front Left = ID 2, Front Right = ID 4, Back Left = ID 1, Back Right = ID 3
-      motorFL(new tap::motor::DjiMotor(drivers, tap::motor::MOTOR2, CAN_BUS, false, "FL Motor")),
+      motorFL(new tap::motor::DjiMotor(drivers, tap::motor::MOTOR3, CAN_BUS, false, "FL Motor")),
       motorFR(new tap::motor::DjiMotor(drivers, tap::motor::MOTOR4, CAN_BUS, false, "FR Motor")),
       motorBL(new tap::motor::DjiMotor(drivers, tap::motor::MOTOR1, CAN_BUS, false, "BL Motor")),
-      motorBR(new tap::motor::DjiMotor(drivers, tap::motor::MOTOR3, CAN_BUS, false, "BR Motor")),
+      motorBR(new tap::motor::DjiMotor(drivers, tap::motor::MOTOR2, CAN_BUS, false, "BR Motor")),
       // Initialize PID controllers for each motor (matching turret pattern)
       pidFL(new tap::algorithms::SmoothPid(tap::algorithms::SmoothPidConfig{15, 0.5, 0, 0, 16000, 1, 0, 1, 0})),
       pidFR(new tap::algorithms::SmoothPid(tap::algorithms::SmoothPidConfig{15, 0.5, 0, 0, 16000, 1, 0, 1, 0})),
@@ -99,11 +99,12 @@ void Chassis::update()
     }
     
     // 5. Your existing X-drive kinematics
-    // All motors get same omega contribution for all 4 spinning same direction
-    float fl_speed = vx + vy + omega;
+    // All motors get same omega contribution for all 4 spinning same direction in CounterClockwise formation
+    float fl_speed = -vx -vy + omega;
     float fr_speed = -vx + vy + omega;
     float bl_speed = vx - vy + omega;
-    float br_speed = -vx - vy + omega;
+    float br_speed = vx + vy +omega;
+
     
     // 6. Scale to MAX_CHASSIS_RPM (Your existing logic)
     desiredRpmFL = fl_speed * MAX_CHASSIS_RPM;
