@@ -33,7 +33,8 @@ public:
      * @param vy velocity in the y direction
      * @param omega angular velocity
      */
-    void setVelocity(float vx, float vy, float omega);
+    // Logic of this function was already implemented in the update() function
+    // void setVelocity(float vx, float vy, float omega);
     
     /**
      * Set gimbal pointer for turret-centric drive

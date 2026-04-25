@@ -155,7 +155,6 @@ private:
     static constexpr float BEYBLADE_FF_GAIN = 0.65f;  // Reduced significantly - PID doing heavy lifting
     // IMU yaw sign already matches the world frame we want for counter-rotation
     static constexpr float IMU_UPSIDE_DOWN_CORRECTION = 1.0f;
-    static constexpr float GYRO_ORIENTATION_MAGIC = 1.0f;  // Leave at 1.0 unless further mounting inversion is observed
     
     // Beyblade safety deadband: ignore chassis spin if |velocity| < this threshold to prevent jitter
     static constexpr float BEYBLADE_CHASSIS_DEADBAND = 5.0f;  // degrees/sec
