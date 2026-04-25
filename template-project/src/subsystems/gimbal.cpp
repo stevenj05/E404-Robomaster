@@ -64,12 +64,13 @@ void Gimbal::calibrateEncoderToGyro()
     // Capture the encoder position RIGHT NOW
     float rawEncoderReading = yawMotor->getEncoderUnwrapped();
     
-    // Convert the known 90° mechanical offset into encoder counts
-    // The turret's 90° rotation = motor_counts for (90° * gear_ratio)
-    static constexpr float MECHANICAL_OFFSET_DEG = 90.0f;  // Encoder is 90° rotated from turret front
+    // The encoder is physically mounted 90° rotated from turret front
+    // When turret points forward, we need to subtract 90° worth of encoder counts
+    // to make the angle calculation return 0°
+    static constexpr float MECHANICAL_OFFSET_DEG = 90.0f;
     float mechanicalOffsetCounts = MECHANICAL_OFFSET_DEG * ENCODER_COUNTS_PER_DEGREE * YAW_GEAR_RATIO;
     
-    // Apply correction: subtract the offset so that "forward turret" = "0° encoder math"
+    // Apply correction: subtract offset so "forward turret" = 0° angle
     initialYawEncoder = rawEncoderReading - mechanicalOffsetCounts;
     
     // Record gyro heading for reference
@@ -87,13 +88,14 @@ void Gimbal::calibrateEncoderToGyro()
         gyroEncoderMountingOffset = gyroAtCal - encoderAtCal;
         mountingOffsetCalculated = true;
         
-        printf("[FIRST CALIBRATION WITH OFFSET CORRECTION]\n");
+        printf("[FIRST CALIBRATION]\n");
         printf("  Raw Encoder Reading: %.0f counts\n", rawEncoderReading);
         printf("  90° Mechanical Offset: %.0f counts\n", mechanicalOffsetCounts);
         printf("  Corrected Baseline: %.0f counts\n", initialYawEncoder);
-        printf("  Turret NOW at Forward = 0° (mechanically corrected)\n");
+        printf("  Turret NOW at Forward = 0°\n");
         printf("  Encoder Yaw Angle: %.2f deg\n", encoderAtCal);
         printf("  Gyro Heading: %.2f deg\n", gyroAtCal);
+        printf("  Gyro-Encoder Mounting Offset: %.2f deg\n", gyroEncoderMountingOffset);
         printf("================================================\n");
     }
     else
@@ -164,9 +166,30 @@ float Gimbal::getCorrectedEncoderYawDegrees() const
 
 void Gimbal::update()
 {
-    // Get joystick input from DR16 remote
-    float yawInput = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
-    float pitchInput = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
+    // === HYBRID GIMBAL INPUT: Mouse + Joystick ===
+    
+    // Get mouse input for gimbal control
+    constexpr float MOUSE_SENS_YAW = 13.0f;      // Higher for faster left/right response
+    constexpr float MOUSE_SENS_PITCH = 6.0f;   // Lower for slower up/down response
+    constexpr float DT = 1.0f / 500.0f;  // 500Hz update rate
+    
+    float mouseX = static_cast<float>(drivers->remote.getMouseX()) * MOUSE_SENS_YAW * DT;
+    float mouseY = static_cast<float>(drivers->remote.getMouseY()) * MOUSE_SENS_PITCH * DT;
+    
+    mouseX = std::clamp(mouseX, -1.0f, 1.0f);
+    mouseY = std::clamp(mouseY, -1.0f, 1.0f);
+    
+    // Get joystick input from remote
+    float joystickYaw = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_HORIZONTAL);
+    float joystickPitch = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::RIGHT_VERTICAL);
+    
+    // Combine mouse and joystick inputs: add them together
+    float yawInput = mouseX + joystickYaw;      // Removed negation to fix inversion
+    float pitchInput = -mouseY + joystickPitch; // Inverted pitch to fix inversion
+    
+    // Clamp combined input
+    yawInput = std::clamp(yawInput, -1.0f, 1.0f);
+    pitchInput = std::clamp(pitchInput, -1.0f, 1.0f);
     
     // Check for manual recalibration request (LEFT_SWITCH down = recalibrate)
     checkAndHandleRecalibration();
@@ -192,8 +215,11 @@ void Gimbal::update()
     // 2. Let PID chase the moving target → smooth, adaptive motor control
     // No hardcoded scaling factors - PID naturally adapts to speed changes
     
-    bool beybladeMode = (drivers->remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) == 
-                        tap::communication::serial::Remote::SwitchState::UP);
+    // Beyblade can be activated with Shift key OR right switch on remote
+    bool keyboardBeyblade = drivers->remote.keyPressed(tap::communication::serial::Remote::Key::SHIFT);
+    bool remoteBeyblade = (drivers->remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) == 
+                          tap::communication::serial::Remote::SwitchState::UP);
+    bool beybladeMode = keyboardBeyblade || remoteBeyblade;
     
     if (beybladeMode)
     {
@@ -205,14 +231,14 @@ void Gimbal::update()
             pidYawActive = true;
             gimbalYawTargetPos = yawMotor->getEncoderUnwrapped();  // Start from current position
             lastGyroHeadingDeg = getCorrectedGyroHeadingDegrees();
-            // EXTENDED startup delay: 250 frames (~500ms) to let gyro stabilize before applying feedforward
+            // SHORT startup delay: 20 frames (~40ms) to let gyro stabilize before applying feedforward
             // This prevents noisy initial gyro readings from causing 2-3 seconds of unwanted motor spin
-            beybladeStartupCounter = 50;
+            beybladeStartupCounter = 20;
             // Reset gyro bias calibration accumulators
             gyroHeadingDeltaAccumulator = 0.0f;
             gyroCalibrationSampleCount = 0;
             gyroBiasOffset = 0.0f;
-            printf("[BEYBLADE] Activated - Position-integrated counter-rotation mode (startup delay: 250 frames)\n");
+            printf("[BEYBLADE] Activated - Position-integrated counter-rotation mode (startup delay: 20 frames)\n");
         }
         
         // Gyro-delta driven counter-rotation: keep turret world-stationary
@@ -257,7 +283,10 @@ void Gimbal::update()
             // Reduced multiplier to 1.2f to ensure joystick input can override gyro corrections
             float positionIncrement = -headingDelta * 1.2f * ENCODER_COUNTS_PER_DEGREE * YAW_GEAR_RATIO;
             
-            gimbalYawTargetPos += positionIncrement;
+            // Add manual compensation for constant drift
+            float driftCompensation = -0.3f * ENCODER_COUNTS_PER_DEGREE * YAW_GEAR_RATIO;
+            
+            gimbalYawTargetPos += positionIncrement + driftCompensation;
 
             // Debug: observe signs to validate counter-rotation
             static uint32_t beybladeGyroDebugCounter = 0;
@@ -387,6 +416,10 @@ void Gimbal::update()
             // Reset gyro baseline so next Beyblade entry starts clean
             lastGyroHeadingDeg = getCorrectedGyroHeadingDegrees();
             
+            // Reset PID state to clear stale beyblade data and restore snappy normal response
+            // Set target to current position so error is zero and PID starts fresh
+            gimbalYawTargetPos = yawMotor->getEncoderUnwrapped();
+            
             // Standard Joystick/Relative Control Logic
             // Wait for 3-second PID activation delay in normal mode
             if (!pidYawActive)
@@ -421,13 +454,13 @@ void Gimbal::update()
     if (!pidPitchActive)
     {
         // During startup (first 3 seconds): direct output control, no jerk
-        pitchMotor->setDesiredOutput(static_cast<int32_t>(-pitchInput * 13300));
+        pitchMotor->setDesiredOutput(static_cast<int32_t>(pitchInput * 13300));
     }
     else
     {
         // After 3 seconds: activate PID for position holding
         // Update target position based on joystick input
-        gimbalPitchTargetPos += -pitchInput * 3.0f;  // Inverted for intuitive up = up
+        gimbalPitchTargetPos += pitchInput * 12.0f;  // Increased for snappier response
         
         // Update PID controller with error derivative computation
         float pitchError = gimbalPitchTargetPos - pitchMotor->getEncoderUnwrapped();

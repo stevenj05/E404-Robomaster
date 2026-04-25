@@ -1,0 +1,131 @@
+/**
+ * Simplified motor test to isolate the 2006 + flywheel issue
+ * Use this to test one motor at a time and identify the problem
+ */
+
+#include "tap/board/board.hpp"
+#include "tap/communication/serial/remote.hpp"
+#include "tap/motor/dji_motor.hpp"
+#include "drivers_singleton.hpp"
+#include "tap/architecture/periodic_timer.hpp"
+
+static constexpr float MAIN_LOOP_FREQUENCY = 500.0f;
+static constexpr tap::can::CanBus CAN_BUS = tap::can::CanBus::CAN_BUS1;
+
+// Test different motor combinations by uncommenting different sections
+#define TEST_2006_ONLY      // Test 1: Only 2006 motor
+// #define TEST_FLYWHEEL_ONLY  // Test 2: Only one flywheel
+// #define TEST_BOTH           // Test 3: Both motors together
+
+tap::arch::PeriodicMilliTimer sendMotorTimeout(1000.0f / MAIN_LOOP_FREQUENCY);
+
+int main()
+{
+    src::Drivers *drivers = src::DoNotUse_getDrivers();
+    
+    Board::initialize();
+    
+    tap::communication::serial::Remote remote(drivers);
+    remote.initialize();
+
+#ifdef TEST_2006_ONLY
+    // Test 1: Only 2006 motor
+    tap::motor::DjiMotor motor6(drivers, tap::motor::MOTOR6, CAN_BUS, true, "2006 agitator");
+    motor6.initialize();
+    
+    while (1) {
+        remote.read();
+        
+        if (sendMotorTimeout.execute()) {
+            // Simple control: Left switch UP = spin, DOWN = stop
+            if (remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
+                tap::communication::serial::Remote::SwitchState::UP) {
+                motor6.setDesiredOutput(4000);  // Spin at moderate speed
+            } else {
+                motor6.setDesiredOutput(0);     // Stop
+            }
+            
+            drivers->djiMotorTxHandler.encodeAndSendCanData();
+        }
+        
+        drivers->canRxHandler.pollCanData();
+        modm::delay_us(100);
+    }
+
+#elif defined(TEST_FLYWHEEL_ONLY)
+    // Test 2: Only one flywheel
+    tap::motor::DjiMotor flywheel1(drivers, tap::motor::MOTOR1, CAN_BUS, false, "flywheel 1");
+    flywheel1.initialize();
+    
+    while (1) {
+        remote.read();
+        
+        if (sendMotorTimeout.execute()) {
+            if (remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
+                tap::communication::serial::Remote::SwitchState::UP) {
+                flywheel1.setDesiredOutput(8000);  // Moderate flywheel speed
+            } else {
+                flywheel1.setDesiredOutput(0);
+            }
+            
+            drivers->djiMotorTxHandler.encodeAndSendCanData();
+        }
+        
+        drivers->canRxHandler.pollCanData();
+        modm::delay_us(100);
+    }
+
+#elif defined(TEST_BOTH)
+    // Test 3: Both motors with careful power management
+    tap::motor::DjiMotor motor6(drivers, tap::motor::MOTOR6, CAN_BUS, true, "2006 agitator");
+    tap::motor::DjiMotor flywheel1(drivers, tap::motor::MOTOR1, CAN_BUS, false, "flywheel 1");
+    
+    // Initialize with delays
+    motor6.initialize();
+    modm::delay_ms(50);
+    flywheel1.initialize();
+    modm::delay_ms(50);
+    
+    static bool motor6Active = false;
+    static bool flywheel1Active = false;
+    static uint32_t startupDelay = 0;
+    
+    while (1) {
+        remote.read();
+        
+        if (sendMotorTimeout.execute()) {
+            startupDelay++;
+            
+            // Staggered startup - 2006 first, then flywheel
+            if (startupDelay > 100) {  // 200ms delay
+                if (remote.getSwitch(tap::communication::serial::Remote::Switch::LEFT_SWITCH) ==
+                    tap::communication::serial::Remote::SwitchState::UP) {
+                    motor6Active = true;
+                } else {
+                    motor6Active = false;
+                }
+            }
+            
+            if (startupDelay > 200) {  // 400ms delay for flywheel
+                if (remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) ==
+                    tap::communication::serial::Remote::SwitchState::UP) {
+                    flywheel1Active = true;
+                } else {
+                    flywheel1Active = false;
+                }
+            }
+            
+            // Apply motor outputs
+            motor6.setDesiredOutput(motor6Active ? 3000 : 0);        // Reduced power
+            flywheel1.setDesiredOutput(flywheel1Active ? 6000 : 0);  // Reduced power
+            
+            drivers->djiMotorTxHandler.encodeAndSendCanData();
+        }
+        
+        drivers->canRxHandler.pollCanData();
+        modm::delay_us(100);
+    }
+#endif
+
+    return 0;
+}

@@ -147,7 +147,7 @@ private:
     float gyroBiasOffset = 0.0f;               // Final calculated bias to subtract from headings
     
     static constexpr float ENCODER_COUNTS_PER_DEGREE = 8192.0f / 360.0f;  // GM6020
-    static constexpr float YAW_GEAR_RATIO = 2.5f;  // 2.5:1 gear ratio (motor spins 2.5x per turret rotation)
+    static constexpr float YAW_GEAR_RATIO = 1.0f;  // 1:1 gear ratio (direct drive)
     
     // === BEYBLADE FEED-FORWARD CONSTANTS ===
     // FF_GAIN: scales the feed-forward gyro compensation (experiment with 0.5-2.0)

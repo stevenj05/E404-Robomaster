@@ -37,12 +37,37 @@ void Chassis::initialize()
 void Chassis::update()
 {
     // === BEYBLADE MODE CHECK ===
-    bool beybladeActive = (drivers->remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) == 
+    // Can activate with Shift key OR right switch on remote
+    bool keyboardBeyblade = drivers->remote.keyPressed(tap::communication::serial::Remote::Key::SHIFT);
+    bool remoteBeyblade = (drivers->remote.getSwitch(tap::communication::serial::Remote::Switch::RIGHT_SWITCH) == 
                           tap::communication::serial::Remote::SwitchState::UP);
+    bool beybladeActive = keyboardBeyblade || remoteBeyblade;
     
-    // 1. Get raw joystick inputs
-    float raw_vx = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL); 
-    float raw_vy = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
+    // === HYBRID INPUT: Keyboard + Joystick ===
+    // Get keyboard input for WASD movement
+    float keyboard_vx = 0.0f;
+    float keyboard_vy = 0.0f;
+    
+    if (drivers->remote.keyPressed(tap::communication::serial::Remote::Key::W))
+        keyboard_vx += 1.0f;
+    if (drivers->remote.keyPressed(tap::communication::serial::Remote::Key::S))
+        keyboard_vx -= 1.0f;
+    if (drivers->remote.keyPressed(tap::communication::serial::Remote::Key::A))
+        keyboard_vy -= 1.0f;
+    if (drivers->remote.keyPressed(tap::communication::serial::Remote::Key::D))
+        keyboard_vy += 1.0f;
+    
+    // Get joystick input from remote
+    float joystick_vx = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_VERTICAL);
+    float joystick_vy = drivers->remote.getChannel(tap::communication::serial::Remote::Channel::LEFT_HORIZONTAL);
+    
+    // Combine inputs: add them together for hybrid control
+    float raw_vx = keyboard_vx + joystick_vx;
+    float raw_vy = keyboard_vy + joystick_vy;
+    
+    // Clamp to [-1, 1] range
+    raw_vx = std::clamp(raw_vx, -1.0f, 1.0f);
+    raw_vy = std::clamp(raw_vy, -1.0f, 1.0f);
     
     // 2. Adaptive Shuriken Speed (based on translation magnitude)
     // When moving fast: reduce spin for stability
@@ -52,6 +77,16 @@ void Chassis::update()
     float shurikenRpm = MAX_SHURIKEN_SPEED * downscale;
     // Convert RPM to normalized omega (0 to 1 range), negative for counterclockwise
     float omega = beybladeActive ? -(shurikenRpm / MAX_CHASSIS_RPM) : 0.0f;
+    
+    // DEBUG: Print beyblade status
+    static uint32_t beybladeDebugCounter = 0;
+    if (beybladeActive && beybladeDebugCounter++ % 100 == 0)
+    {
+        printf("[BEYBLADE] TransMag=%.2f | Downscale=%.3f | DesiredSpin=%.0f RPM | Omega=%.3f\n",
+               (double)translationMagnitude, (double)downscale, (double)shurikenRpm, (double)omega);
+        printf("  Motor speeds - FL: %.0f | FR: %.0f | BL: %.0f | BR: %.0f\n",
+               (double)motorFL->getShaftRPM(), (double)motorFR->getShaftRPM(), (double)motorBL->getShaftRPM(), (double)motorBR->getShaftRPM());
+    }
     
     // === PASS ACTUAL CHASSIS SPIN TO GIMBAL FOR FEED-FORWARD COMPENSATION ===
     // Calculate actual measured chassis angular velocity from motors
@@ -95,7 +130,7 @@ void Chassis::update()
     if ((std::abs(raw_vx) > 0.1f || std::abs(raw_vy) > 0.1f) && gimbal != nullptr && gimbal->isCalibrated() && debugCounter++ % 50 == 0)
     {
         printf("[CHASSIS] Turret: %.1f deg | Raw(vx=%.2f, vy=%.2f) → Transform(vx=%.2f, vy=%.2f)\n",
-               turret_angle_deg, raw_vx, raw_vy, vx, vy);
+               (double)turret_angle_deg, (double)raw_vx, (double)raw_vy, (double)vx, (double)vy);
     }
     
     // 5. Your existing X-drive kinematics
