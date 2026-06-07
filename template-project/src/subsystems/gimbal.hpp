@@ -132,39 +132,22 @@ private:
     tap::communication::serial::Remote::SwitchState prevLeftSwitchState = 
         tap::communication::serial::Remote::SwitchState::UNKNOWN;  // Track switch state for edge detection
     
-    // === BEYBLADE MODE: Gyro-Locked Counter-Rotation ===
-    float targetGyroHeading = 0.0f;     // Gyro heading to maintain in Beyblade mode
-    bool wasInBeyblade = false;         // Track mode transitions to handle setup and cleanup
-    uint32_t beybladeStartupCounter = 0;  // Delays motor output for first few frames (prevents jerk)
-    uint32_t beybladeDecelCounter = 0;  // Counts down during deceleration phase
-    float chassisAngularVelocity = 0.0f;  // Updated by setChassisAngularVelocity()
-    float lastGyroHeadingDeg = 0.0f;  // Tracks previous gyro reading for delta integration
-    
-    // === GYRO BIAS CALIBRATION ===
-    // Calibrate gyro offset during beyblade startup to eliminate constant drift
-    float gyroHeadingDeltaAccumulator = 0.0f;  // Sum of heading deltas during startup
-    uint32_t gyroCalibrationSampleCount = 0;   // Number of samples accumulated
-    float gyroBiasOffset = 0.0f;               // Final calculated bias to subtract from headings
-    
-    static constexpr float ENCODER_COUNTS_PER_DEGREE = 8192.0f / 360.0f;  // GM6020
-    static constexpr float YAW_GEAR_RATIO = 1.0f;  // 1:1 gear ratio (direct drive)
-    
-    // === BEYBLADE FEED-FORWARD CONSTANTS ===
-    // FF_GAIN: scales the feed-forward gyro compensation (experiment with 0.5-2.0)
-    // Upside-down IMU sign: +1 if normal, -1 if board mounted upside down
-    static constexpr float BEYBLADE_FF_GAIN = 0.65f;  // Reduced significantly - PID doing heavy lifting
-    // IMU yaw sign already matches the world frame we want for counter-rotation
-    static constexpr float IMU_UPSIDE_DOWN_CORRECTION = 1.0f;
-    
-    // Beyblade safety deadband: ignore chassis spin if |velocity| < this threshold to prevent jitter
-    static constexpr float BEYBLADE_CHASSIS_DEADBAND = 5.0f;  // degrees/sec
-    
-    // === BEYBLADE SPEED SCALING ===
-    // Scales gimbal counter-rotation speed to match chassis speed
-    // If gimbal spins too fast: DECREASE this value (e.g., 0.03, 0.02, 0.01)
-    // If gimbal spins too slow: INCREASE this value (e.g., 0.05, 0.1)
-    // Tune until gimbal and chassis rotate at same visual speed
-    static constexpr float BEYBLADE_SPEED_SCALE = 1.0f;  // Gyro-driven scale (leave at 1.0 unless fine tuning)
+    // === BEYBLADE MODE ===
+    bool wasInBeyblade = false;
+    uint32_t beybladeDecelCounter = 0;
+    float chassisAngularVelocity = 0.0f;
+    float lastGyroHeadingDeg = 0.0f;      // prev frame gyro heading for rate differentiation
+    float beybladeAccumulatedYaw = 0.0f;  // integrated heading drift since activation
+
+    static constexpr float ENCODER_COUNTS_PER_DEGREE = 8192.0f / 360.0f;
+    static constexpr float YAW_GEAR_RATIO = 19.0f / 48.0f;  // 19-tooth motor : 48-tooth turret
+
+    // D gain: opposes drift rate (same term confirmed to produce counter-rotation)
+    // P gain: restoring force that grows as heading error accumulates
+    // Increase KD_RATE if counter-rotation is too slow.
+    // Increase KP_HEADING if turret drifts back to chassis heading over time.
+    static constexpr float BEYBLADE_KD_RATE    = 80.0f;
+    static constexpr float BEYBLADE_KP_HEADING = 120.0f;
     
     // === BEYBLADE DECELERATION ===
     // Smooth stop instead of instant snap when exiting beyblade mode

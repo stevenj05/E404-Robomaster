@@ -61,17 +61,10 @@ void Gimbal::calibrateEncoderToGyro()
     // So when turret points forward, encoder reads X, but motor thinks that's 90° offset
     // We correct for this by shifting the baseline by the mechanical offset
     
-    // Capture the encoder position RIGHT NOW
+    // Capture the encoder position RIGHT NOW.
+    // User presses calibrate with turret pointing forward — that position IS forward = 0°.
     float rawEncoderReading = yawMotor->getEncoderUnwrapped();
-    
-    // The encoder is physically mounted 90° rotated from turret front
-    // When turret points forward, we need to subtract 90° worth of encoder counts
-    // to make the angle calculation return 0°
-    static constexpr float MECHANICAL_OFFSET_DEG = 90.0f;
-    float mechanicalOffsetCounts = MECHANICAL_OFFSET_DEG * ENCODER_COUNTS_PER_DEGREE * YAW_GEAR_RATIO;
-    
-    // Apply correction: subtract offset so "forward turret" = 0° angle
-    initialYawEncoder = rawEncoderReading - mechanicalOffsetCounts;
+    initialYawEncoder = rawEncoderReading;
     
     // Record gyro heading for reference
     gyroHeadingAtCalibration = getGyroHeadingDegrees();
@@ -88,20 +81,13 @@ void Gimbal::calibrateEncoderToGyro()
         gyroEncoderMountingOffset = gyroAtCal - encoderAtCal;
         mountingOffsetCalculated = true;
         
-        printf("[FIRST CALIBRATION]\n");
-        printf("  Raw Encoder Reading: %.0f counts\n", rawEncoderReading);
-        printf("  90° Mechanical Offset: %.0f counts\n", mechanicalOffsetCounts);
-        printf("  Corrected Baseline: %.0f counts\n", initialYawEncoder);
-        printf("  Turret NOW at Forward = 0°\n");
-        printf("  Encoder Yaw Angle: %.2f deg\n", encoderAtCal);
-        printf("  Gyro Heading: %.2f deg\n", gyroAtCal);
-        printf("  Gyro-Encoder Mounting Offset: %.2f deg\n", gyroEncoderMountingOffset);
-        printf("================================================\n");
+        printf("[FIRST CALIBRATION] encoder=%.0f | yaw=%.2f deg | gyro=%.2f deg | offset=%.2f deg\n",
+               (double)rawEncoderReading, (double)encoderAtCal, (double)gyroAtCal, (double)gyroEncoderMountingOffset);
     }
     else
     {
         printf("[RECALIBRATION]\n");
-        printf("  Raw Encoder: %.0f counts → Corrected: %.0f counts\n", rawEncoderReading, initialYawEncoder);
+        printf("  Raw Encoder: %.0f counts -> Corrected: %.0f counts\n", (double)rawEncoderReading, (double)initialYawEncoder);
         printf("  Turret realigned to Forward = 0°\n");
         printf("  Ready for turret-centric drive\n");
         printf("====================================\n");
@@ -160,8 +146,8 @@ float Gimbal::getCorrectedEncoderYawDegrees() const
 {
     // With absolute calibration, the encoder angle IS the corrected angle
     // We set the baseline such that "Forward" = 0° at calibration time
-    // No additional offset needed
-    return getYawAngleDegrees();
+    // Apply 90° correction for turret-centric orientation
+    return getYawAngleDegrees() + 90.0f;
 }
 
 void Gimbal::update()
@@ -227,150 +213,46 @@ void Gimbal::update()
         if (!wasInBeyblade)
         {
             wasInBeyblade = true;
-            // Force PID to be active immediately in beyblade mode
             pidYawActive = true;
-            gimbalYawTargetPos = yawMotor->getEncoderUnwrapped();  // Start from current position
+            gimbalYawTargetPos = yawMotor->getEncoderUnwrapped();
             lastGyroHeadingDeg = getCorrectedGyroHeadingDegrees();
-            // SHORT startup delay: 20 frames (~40ms) to let gyro stabilize before applying feedforward
-            // This prevents noisy initial gyro readings from causing 2-3 seconds of unwanted motor spin
-            beybladeStartupCounter = 20;
-            // Reset gyro bias calibration accumulators
-            gyroHeadingDeltaAccumulator = 0.0f;
-            gyroCalibrationSampleCount = 0;
-            gyroBiasOffset = 0.0f;
-            printf("[BEYBLADE] Activated - Position-integrated counter-rotation mode (startup delay: 20 frames)\n");
+            printf("[BEYBLADE] Activated\n");
         }
-        
+
         // Gyro-delta driven counter-rotation: keep turret world-stationary
         float currentHeading = getCorrectedGyroHeadingDegrees();
-        
-        // === GYRO BIAS CALIBRATION PHASE ===
-        // During startup, measure and accumulate gyro drift to calculate bias offset
-        if (beybladeStartupCounter > 0)
-        {
-            // Calculates difference between the current gyro heading and last recorded gyro heading
-            // taken from bmi088->getYaw().
-            float headingDelta = wrapDegrees(currentHeading - lastGyroHeadingDeg);
-            gyroHeadingDeltaAccumulator += headingDelta;
-            gyroCalibrationSampleCount++;
-            
-            // Calculate average bias when startup ends (beybladeStartupCounter == 1)
-            if (beybladeStartupCounter == 1)
-            {
-                gyroBiasOffset = gyroHeadingDeltaAccumulator / static_cast<float>(gyroCalibrationSampleCount);
-                printf("[BEYBLADE] Gyro bias calibrated: %.4f deg/frame (from %lu samples)\n",
-                       (double)gyroBiasOffset, gyroCalibrationSampleCount);
-            }
-        }
-        
-        // === POSITION UPDATE WITH BIAS-CORRECTED GYRO ===
-        // After startup, use bias-corrected heading delta to eliminate constant drift
-        if (beybladeStartupCounter == 0)
-        {
-            float headingDelta = wrapDegrees(currentHeading - lastGyroHeadingDeg);
-            
-            // Subtract gyro bias offset to eliminate constant drift
-            headingDelta -= gyroBiasOffset;
+        constexpr float DT = 1.0f / 500.0f;
 
-            // --- Logic Refinement Step 1: Deadband on Gyro Delta ---
-            // Prevents drift/noise from causing the gimbal to spin when stationary.
-            // Threshold: 0.01 degrees per loop (~5 deg/sec).
-            // Reduced further to maximize responsiveness to gyro changes.
-            if (std::abs(headingDelta) < 0.01f) 
-            {
-                headingDelta = 0.0f;
-            }
-
-            // Use REAL Sensor Data with restored Deadband:
-            // Reduced multiplier to 1.2f to ensure joystick input can override gyro corrections
-            float positionIncrement = -headingDelta * 1.0f * ENCODER_COUNTS_PER_DEGREE * YAW_GEAR_RATIO;
-            
-            // Add manual compensation for constant drift
-            float driftCompensation = -0.3f * ENCODER_COUNTS_PER_DEGREE * YAW_GEAR_RATIO;
-            
-            gimbalYawTargetPos += positionIncrement + driftCompensation;
-
-            // Debug: observe signs to validate counter-rotation
-            static uint32_t beybladeGyroDebugCounter = 0;
-            if (beybladeGyroDebugCounter++ % 50 == 0)
-            {
-                printf("[BEY-GYRO] heading=%.2f deg | dHeading=%.2f (bias-corrected) | incr=%.0f cnt | tgt=%.0f | enc=%.0f\n",
-                       (double)currentHeading,
-                       (double)headingDelta,
-                       (double)positionIncrement,
-                       (double)gimbalYawTargetPos,
-                       (double)yawMotor->getEncoderUnwrapped());
-            }
-        }
-        
-        // Preserve driver yaw authority during Beyblade - active ALL the time during beyblade mode
-        gimbalYawTargetPos += -yawInput * 200.0f;
-        
-        // CRITICAL: Always update gyro baseline, even during startup
-        // This prevents accumulated heading delta from causing startup spin
+        // Frame-to-frame heading change = turret yaw rate × DT
+        float headingDelta = wrapDegrees(currentHeading - lastGyroHeadingDeg);
         lastGyroHeadingDeg = currentHeading;
-        
-        // Use PID to chase the moving target position
-        float yawError = gimbalYawTargetPos - yawMotor->getEncoderUnwrapped();
-        
-        // --- HYBRID STABILITY/SPEED CONTROL ---
-        // NEW TUNING FOR TIGHT BELT - "ANTI-SEIZURE" MODE
-        // Diagnosis: System "gradually overcorrects" = Growing Oscillation.
-        // Causes: 
-        // 1. P is slightly too high for the stiffness.
-        // 2. The "Speed Boost" is kicking in during the overshoot, adding fuel to the fire.
-        
-        // 1. STABILITY: P gain increased to 25.0 for aggressive counter-rotation response.
-        float kp = 12.0f;
-        
-        // 2. DAMPING: D gain set to 130.0 for aggressive wobble suppression.
-        //    Significantly increased to handle loose belt - dampens left/right oscillations.
-        //    Higher D resists rapid direction changes and stabilizes the turret.
-        float kd = 180.0f;
-        
-        static float lastYawError = 0;
-        
-        // Reset error tracking when startup delay ends to prevent D-term kick
-        if (beybladeStartupCounter == 1)
-        {
-            lastYawError = yawError;
-        }
-        
-        float errorDelta = yawError - lastYawError; // Raw delta, no lag.
-        lastYawError = yawError;
-        
-        float baseOutput = (kp * yawError) + (kd * errorDelta);
+        float yawRateDegPerSec = headingDelta / DT;
 
-        // Pure PID control - let PID handle all corrections, no feed-forward
-        // Feed-forward was causing startup jerk issues
-        
-        // Total Output - PID only
-        float finalOutput = baseOutput;
-        
-        // Clamp output
-        if (finalOutput > 16384) finalOutput = 16384; 
-        if (finalOutput < -16384) finalOutput = -16384;
+        // Accumulate total heading drift since beyblade activated (clamped to ±180°)
+        beybladeAccumulatedYaw += headingDelta;
+        beybladeAccumulatedYaw = std::clamp(beybladeAccumulatedYaw, -180.0f, 180.0f);
 
-        int32_t pidOutput = static_cast<int32_t>(finalOutput);
-        
-        // Suppress motor output during startup delay to prevent jerk
-        if (beybladeStartupCounter > 0)
-        {
-            yawMotor->setDesiredOutput(0);
-            beybladeStartupCounter--;
-        }
-        else
-        {
-            yawMotor->setDesiredOutput(pidOutput);
-        }
-        
-        // DEBUG: Print Beyblade status
+        // Manual driver yaw override — also unwinds the accumulated error intentionally
+        float manualDelta = -yawInput * 200.0f * DT;  // in degrees
+        beybladeAccumulatedYaw += manualDelta;
+        gimbalYawTargetPos += -yawInput * 200.0f;
+
+        // PD on world-frame heading (pure gyro — no encoder direction ambiguity):
+        //   D term: immediate opposition to current drift rate (confirmed sign from prior testing)
+        //   P term: restoring force that grows as heading error accumulates over time
+        float dOutput = -yawRateDegPerSec * BEYBLADE_KD_RATE;
+        float pOutput = -beybladeAccumulatedYaw * BEYBLADE_KP_HEADING;
+        float finalOutput = std::clamp(dOutput + pOutput, -16384.0f, 16384.0f);
+        yawMotor->setDesiredOutput(static_cast<int32_t>(finalOutput));
+
         static uint32_t beybladeDebugCounter = 0;
         if (beybladeDebugCounter++ % 50 == 0)
         {
-            printf("[BEY] ChassisVel: %.1f deg/s | TargetPos: %.0f | EncoderPos: %.0f | Error: %.0f\n",
-                   (double)chassisAngularVelocity, (double)gimbalYawTargetPos, (double)yawMotor->getEncoderUnwrapped(), (double)yawError);
+            printf("[BEY] rate=%.1f d/s | accYaw=%.2f deg | D=%.0f | P=%.0f | out=%.0f\n",
+                   (double)yawRateDegPerSec, (double)beybladeAccumulatedYaw,
+                   (double)dOutput, (double)pOutput, (double)finalOutput);
         }
+        
     }
     else
     {
@@ -383,7 +265,7 @@ void Gimbal::update()
                 // CRITICAL: Capture current encoder position so we don't unwind
                 gimbalYawTargetPos = yawMotor->getEncoderUnwrapped();
                 beybladeDecelCounter = BEYBLADE_DECEL_FRAMES;
-                printf("[BEYBLADE] Starting smooth deceleration (%.0f ms), freezing at position\n", (float)BEYBLADE_DECEL_TIME_MS);
+                printf("[BEYBLADE] Starting smooth deceleration (%lu ms), freezing at position\n", (unsigned long)BEYBLADE_DECEL_TIME_MS);
             }
         }
         
@@ -414,9 +296,8 @@ void Gimbal::update()
         {
             // Deceleration complete - normal mode resumes
             wasInBeyblade = false;
-            beybladeStartupCounter = 0;  // Reset startup delay counter
-            // Reset gyro baseline so next Beyblade entry starts clean
-            lastGyroHeadingDeg = getCorrectedGyroHeadingDegrees();
+            beybladeAccumulatedYaw = 0.0f;
+            lastGyroHeadingDeg = getGyroHeadingDegrees();
             
             // Reset PID state to clear stale beyblade data and restore snappy normal response
             // Set target to current position so error is zero and PID starts fresh
@@ -490,9 +371,9 @@ float Gimbal::getYawAngleDegrees() const
     // All turret-centric math is based on this angle
     // The encoder is the primary source because it never drifts mechanically
     
+    // Motor shaft degrees × gear ratio (19/48) = turret degrees
     float encoderDiff = yawMotor->getEncoderUnwrapped() - initialYawEncoder;
-    // Account for 2.5:1 gear ratio: motor spins 2.5x per turret rotation
-    return (encoderDiff / ENCODER_COUNTS_PER_DEGREE) / YAW_GEAR_RATIO;
+    return (encoderDiff / ENCODER_COUNTS_PER_DEGREE) * YAW_GEAR_RATIO;
 }
 
 
