@@ -216,41 +216,63 @@ void Gimbal::update()
             pidYawActive = true;
             gimbalYawTargetPos = yawMotor->getEncoderUnwrapped();
             lastGyroHeadingDeg = getCorrectedGyroHeadingDegrees();
+            beybladeTargetHeadingDeg = lastGyroHeadingDeg;  // hold this heading from now on
             printf("[BEYBLADE] Activated\n");
         }
 
-        // Gyro-delta driven counter-rotation: keep turret world-stationary
+        // Gyro-delta driven counter-rotation: keep turret locked to beybladeTargetHeadingDeg
         float currentHeading = getCorrectedGyroHeadingDegrees();
         constexpr float DT = 1.0f / 500.0f;
 
-        // Frame-to-frame heading change = turret yaw rate × DT
+        // Frame-to-frame heading change → instantaneous spin rate
         float headingDelta = wrapDegrees(currentHeading - lastGyroHeadingDeg);
         lastGyroHeadingDeg = currentHeading;
         float yawRateDegPerSec = headingDelta / DT;
 
-        // Accumulate total heading drift since beyblade activated (clamped to ±180°)
-        beybladeAccumulatedYaw += headingDelta;
-        beybladeAccumulatedYaw = std::clamp(beybladeAccumulatedYaw, -180.0f, 180.0f);
-
-        // Manual driver yaw override — also unwinds the accumulated error intentionally
-        float manualDelta = -yawInput * 200.0f * DT;  // in degrees
-        beybladeAccumulatedYaw += manualDelta;
-        gimbalYawTargetPos += -yawInput * 200.0f;
-
-        // PD on world-frame heading (pure gyro — no encoder direction ambiguity):
-        //   D term: immediate opposition to current drift rate (confirmed sign from prior testing)
-        //   P term: restoring force that grows as heading error accumulates over time
+        // D term always active — opposes chassis spin rate for counter-rotation
         float dOutput = -yawRateDegPerSec * BEYBLADE_KD_RATE;
-        float pOutput = -beybladeAccumulatedYaw * BEYBLADE_KP_HEADING;
-        float finalOutput = std::clamp(dOutput + pOutput, -16384.0f, 16384.0f);
+
+        float finalOutput;
+        bool userInputting = std::abs(yawInput) > BEYBLADE_USER_DEADBAND;
+
+        if (userInputting)
+        {
+            // VELOCITY MODE: run identical logic to normal mode so speed feels the same,
+            // then layer counter-rotation D on top.
+            // gimbalYawTargetPos is kept live so releasing stick holds position cleanly.
+            gimbalYawTargetPos += -yawInput * BEYBLADE_USER_ACCEL;
+            float yawError = gimbalYawTargetPos - yawMotor->getEncoderUnwrapped();
+            pidYaw->runControllerDerivateError(yawError, BEYBLADE_UPDATE_PERIOD);
+            int32_t stickFF = static_cast<int32_t>(-yawInput * BEYBLADE_USER_FF);
+            int32_t baseOutput = static_cast<int32_t>(pidYaw->getOutput()) + stickFF;
+
+            // Record heading so hold mode snaps to here when stick released
+            beybladeTargetHeadingDeg = currentHeading;
+
+            finalOutput = std::clamp(static_cast<float>(baseOutput) + dOutput, -25000.0f, 25000.0f);
+        }
+        else
+        {
+            // HOLD MODE: PD locks to the heading where the stick was released.
+            // Motor RPM damping kills oscillation that the gyro can't see
+            // (gyro is on chassis, not turret — turret vibration is invisible to it).
+            gimbalYawTargetPos = yawMotor->getEncoderUnwrapped();
+            pidYaw->runControllerDerivateError(0.0f, BEYBLADE_UPDATE_PERIOD);
+
+            float headingError = wrapDegrees(currentHeading - beybladeTargetHeadingDeg);
+            float pOutput  = -headingError * BEYBLADE_KP_HEADING;
+            float motorDamp = -(float)yawMotor->getShaftRPM() * BEYBLADE_HOLD_DAMP;
+            finalOutput = std::clamp(dOutput + pOutput + motorDamp, -16384.0f, 16384.0f);
+        }
+
         yawMotor->setDesiredOutput(static_cast<int32_t>(finalOutput));
 
         static uint32_t beybladeDebugCounter = 0;
         if (beybladeDebugCounter++ % 50 == 0)
         {
-            printf("[BEY] rate=%.1f d/s | accYaw=%.2f deg | D=%.0f | P=%.0f | out=%.0f\n",
-                   (double)yawRateDegPerSec, (double)beybladeAccumulatedYaw,
-                   (double)dOutput, (double)pOutput, (double)finalOutput);
+            printf("[BEY] rate=%.1f d/s | tgt=%.1f | cur=%.1f | input=%s | out=%.0f\n",
+                   (double)yawRateDegPerSec, (double)beybladeTargetHeadingDeg,
+                   (double)currentHeading, userInputting ? "VEL" : "HOLD", (double)finalOutput);
         }
         
     }
@@ -296,7 +318,7 @@ void Gimbal::update()
         {
             // Deceleration complete - normal mode resumes
             wasInBeyblade = false;
-            beybladeAccumulatedYaw = 0.0f;
+            beybladeTargetHeadingDeg = 0.0f;
             lastGyroHeadingDeg = getGyroHeadingDegrees();
             
             // Reset PID state to clear stale beyblade data and restore snappy normal response

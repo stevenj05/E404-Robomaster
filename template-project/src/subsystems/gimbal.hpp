@@ -136,8 +136,8 @@ private:
     bool wasInBeyblade = false;
     uint32_t beybladeDecelCounter = 0;
     float chassisAngularVelocity = 0.0f;
-    float lastGyroHeadingDeg = 0.0f;      // prev frame gyro heading for rate differentiation
-    float beybladeAccumulatedYaw = 0.0f;  // integrated heading drift since activation
+    float lastGyroHeadingDeg = 0.0f;        // prev frame gyro heading for rate differentiation
+    float beybladeTargetHeadingDeg = 0.0f; // world-frame heading the turret is trying to hold
 
     static constexpr float ENCODER_COUNTS_PER_DEGREE = 8192.0f / 360.0f;
     static constexpr float YAW_GEAR_RATIO = 19.0f / 48.0f;  // 19-tooth motor : 48-tooth turret
@@ -146,8 +146,21 @@ private:
     // P gain: restoring force that grows as heading error accumulates
     // Increase KD_RATE if counter-rotation is too slow.
     // Increase KP_HEADING if turret drifts back to chassis heading over time.
-    static constexpr float BEYBLADE_KD_RATE    = 80.0f;
-    static constexpr float BEYBLADE_KP_HEADING = 120.0f;
+    static constexpr float BEYBLADE_KD_RATE    = 60.0f;
+    static constexpr float BEYBLADE_KP_HEADING = 70.0f;
+
+    // User input in beyblade mode
+    // BEYBLADE_USER_ACCEL  — how fast the position target moves per frame (normal mode = 12)
+    // BEYBLADE_USER_FF     — direct motor feedforward per unit stick input (normal mode = 4000)
+    // Raise both to increase aiming speed in beyblade
+    static constexpr float BEYBLADE_USER_ACCEL    = 40.0f;
+    static constexpr float BEYBLADE_USER_FF       = 25000.0f;
+    static constexpr float BEYBLADE_USER_DEADBAND = 0.05f;
+
+    // Motor RPM damping applied in hold mode to prevent oscillation.
+    // The gyro can't see turret vibration (IMU is on chassis), so this uses
+    // encoder velocity instead. Raise if turret still vibrates after input.
+    static constexpr float BEYBLADE_HOLD_DAMP = 5.0f;
     
     // === BEYBLADE DECELERATION ===
     // Smooth stop instead of instant snap when exiting beyblade mode
@@ -157,7 +170,7 @@ private:
     static constexpr float BEYBLADE_UPDATE_PERIOD = 0.002f;  // 500Hz update rate (in seconds)
     
     // Motor constants
-    static constexpr int MAX_GIMBAL_RPM = 500;
+    static constexpr int MAX_GIMBAL_RPM = 1000;  // Increased from 500 to match higher motor output capacity
 
 };
 
