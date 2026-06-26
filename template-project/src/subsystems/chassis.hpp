@@ -81,8 +81,9 @@ private:
     // Constants
     static constexpr tap::can::CanBus CAN_BUS = tap::can::CanBus::CAN_BUS1;
     static constexpr float MAX_CHASSIS_RPM = 4800.0f; // Reduced by 20% (was 6000)
-    // INCREASED to 3300 RPM for faster beyblade spin
-    static constexpr float MAX_SHURIKEN_SPEED = 3800.0f;  
+    // Beyblade spin speed. Lowered a bit so the gimbal counter-rotation has more
+    // output headroom left for aiming during beyblade.
+    static constexpr float MAX_SHURIKEN_SPEED = 3200.0f;
     static constexpr float DOWNSCALE_COEFFICIENT = 2.0f;  // Higher = less downscaling at high speed
     
     /**

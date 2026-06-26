@@ -230,26 +230,39 @@ void Gimbal::update()
         float yawRateDegPerSec = headingDelta / DT;
 
         // D term always active — opposes chassis spin rate for counter-rotation
-        float dOutput = -yawRateDegPerSec * BEYBLADE_KD_RATE;
+        // HARDCODED OVER-ROTATION: counter-spin a bit MORE than the gyro reports to
+        // compensate for the 19:48 turret gear reduction (turret moves slower than
+        // the motor, so the motor must work harder to hold heading).
+        //   1.0 = exactly match gyro | >1.0 = spin more | full gear comp ~= 2.53
+        // Raise if the turret still drifts WITH the chassis; lower if it over-corrects.
+        constexpr float COUNTER_ROTATION_BOOST = 2.3f;
+        float dOutput = -yawRateDegPerSec * BEYBLADE_KD_RATE * COUNTER_ROTATION_BOOST;
 
         float finalOutput;
         bool userInputting = std::abs(yawInput) > BEYBLADE_USER_DEADBAND;
 
         if (userInputting)
         {
-            // VELOCITY MODE: run identical logic to normal mode so speed feels the same,
-            // then layer counter-rotation D on top.
-            // gimbalYawTargetPos is kept live so releasing stick holds position cleanly.
-            gimbalYawTargetPos += -yawInput * BEYBLADE_USER_ACCEL;
-            float yawError = gimbalYawTargetPos - yawMotor->getEncoderUnwrapped();
-            pidYaw->runControllerDerivateError(yawError, BEYBLADE_UPDATE_PERIOD);
+            // VELOCITY MODE: aim via direct stick feedforward layered on the counter-rotation.
+            // We DON'T accumulate a position target here: with the 19:48 reduction the encoder
+            // counter-spins ~2.5x faster than the turret, so a static target makes the position
+            // PID saturate fighting the counter-rotation and steals all aim authority.
+            // Keeping the loop neutral (target = encoder, error = 0) frees the output for the
+            // stick, so the player can actually slew the turret while beyblading.
+            gimbalYawTargetPos = yawMotor->getEncoderUnwrapped();
+            pidYaw->runControllerDerivateError(0.0f, BEYBLADE_UPDATE_PERIOD);
             int32_t stickFF = static_cast<int32_t>(-yawInput * BEYBLADE_USER_FF);
-            int32_t baseOutput = static_cast<int32_t>(pidYaw->getOutput()) + stickFF;
 
             // Record heading so hold mode snaps to here when stick released
             beybladeTargetHeadingDeg = currentHeading;
 
-            finalOutput = std::clamp(static_cast<float>(baseOutput) + dOutput, -25000.0f, 25000.0f);
+            // SYMMETRIC AIM: the chassis only beyblades one direction, so dOutput is a
+            // large one-sided offset that pins the output to one rail — aiming WITH the
+            // spin is then clamped (no authority) while aiming AGAINST it works. Fade the
+            // counter-rotation out as the stick is pushed so aim gets the full ±25000 in
+            // BOTH directions. Light aim keeps most counter-rotation; hard aim overrides it.
+            float aimScale = std::clamp(1.0f - std::abs(yawInput), 0.0f, 1.0f);
+            finalOutput = std::clamp(static_cast<float>(stickFF) + dOutput * aimScale, -25000.0f, 25000.0f);
         }
         else
         {
