@@ -299,7 +299,7 @@ void Gimbal::update()
             float decelPercent = (float)beybladeDecelCounter / (float)BEYBLADE_DECEL_FRAMES;
 
             // Allow driver yaw input during decel so control isn't lost
-            gimbalYawTargetPos += -yawInput * 12.0f;
+            gimbalYawTargetPos += -yawInput * 30.3f;
             
             // Calculate current error but apply decreasing output
             float yawError = gimbalYawTargetPos - yawMotor->getEncoderUnwrapped();
@@ -336,17 +336,17 @@ void Gimbal::update()
             {
                 // After 3 seconds: activate PID for position holding
                 // Update target position based on joystick input
-                gimbalYawTargetPos += -yawInput * 12.0f;  // Faster accumulation for quicker yaw response
-                
+                gimbalYawTargetPos += -yawInput * 30.3f;  // 12 * (48/19) for 19:48 sprocket ratio
+
                 // Update PID controller
                 float yawError = gimbalYawTargetPos - yawMotor->getEncoderUnwrapped();
                 pidYaw->runControllerDerivateError(yawError, 0.002f);
-                
+
                 // STICK FEED-FORWARD:
                 // Instead of relying on Error to build up (laggy/honey feel),
                 // we inject current directly based on stick input.
                 // This makes it feel "instant" without needing high P-gain.
-                int32_t stickFF = static_cast<int32_t>(-yawInput * 4000.0f);
+                int32_t stickFF = static_cast<int32_t>(-yawInput * 8000.0f);  // 4000 * (48/19), capped at 8000
                 
                 // Apply PID + Stick FF
                 yawMotor->setDesiredOutput(static_cast<int32_t>(pidYaw->getOutput()) + stickFF);
