@@ -406,7 +406,7 @@ float Gimbal::getYawAngleDegrees() const
     // All turret-centric math is based on this angle
     // The encoder is the primary source because it never drifts mechanically
     
-    // Motor shaft degrees × gear ratio (19/48) = turret degrees
+    // Motor shaft degrees × gear ratio (1:1 direct drive) = turret degrees
     float encoderDiff = yawMotor->getEncoderUnwrapped() - initialYawEncoder;
     return (encoderDiff / ENCODER_COUNTS_PER_DEGREE) * YAW_GEAR_RATIO;
 }

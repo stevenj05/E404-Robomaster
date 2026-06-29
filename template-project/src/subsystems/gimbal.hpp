@@ -140,7 +140,7 @@ private:
     float beybladeTargetHeadingDeg = 0.0f; // world-frame heading the turret is trying to hold
 
     static constexpr float ENCODER_COUNTS_PER_DEGREE = 8192.0f / 360.0f;
-    static constexpr float YAW_GEAR_RATIO = 19.0f / 48.0f;  // 19-tooth motor : 48-tooth turret
+    static constexpr float YAW_GEAR_RATIO = 1.0f;  // 1:1 direct drive (motor shaft = turret rotation)
 
     // D gain: opposes drift rate (same term confirmed to produce counter-rotation)
     // P gain: restoring force that grows as heading error accumulates
