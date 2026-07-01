@@ -44,8 +44,8 @@ private:
 
     // Constants
     static constexpr tap::can::CanBus CAN_BUS = tap::can::CanBus::CAN_BUS2;
-    static constexpr float MAX_AGITATOR_RPM = 3500.0f;
-    static constexpr float MAX_FLYWHEEL_RPM = 6000.0f;
+    static constexpr float MAX_AGITATOR_RPM = 400.0f;
+    static constexpr float MAX_FLYWHEEL_RPM = 7000.0f;
 };
 
 #endif  // TURRET_HPP
