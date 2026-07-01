@@ -171,7 +171,7 @@ void Gimbal::update()
     
     // Combine mouse and joystick inputs: add them together
     float yawInput = mouseX + joystickYaw;      // Removed negation to fix inversion
-    float pitchInput = -mouseY + joystickPitch; // Inverted pitch to fix inversion
+    float pitchInput = mouseY + joystickPitch; // Mouse up/down inverted per request
     
     // Clamp combined input
     yawInput = std::clamp(yawInput, -1.0f, 1.0f);
